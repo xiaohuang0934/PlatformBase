@@ -1,0 +1,35 @@
+## .NET Build Artifacts
+**/bin/
+**/obj/
+*.nupkg
+**/packages/
+!**/packages/repositories.config
+
+## Rider / Visual Studio
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+
+## Runtime & Logs
+*.db
+*.db-shm
+*.db-wal
+logs/
+*.log
+
+## Test Results
+TestResults/
+[Tt]est[Rr]esult*/
+
+## macOS
+.DS_Store
+
+## Misc
+*.[Bb]uildLog.*
+[Rr]elease*/
+_UpgradeReport_Files/
+Backup*/
+UpgradeLog.*

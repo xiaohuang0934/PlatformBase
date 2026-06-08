@@ -1,0 +1,6 @@
+@PlatformBase.Host_HostAddress = http://localhost:5269
+
+GET {{PlatformBase.Host_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

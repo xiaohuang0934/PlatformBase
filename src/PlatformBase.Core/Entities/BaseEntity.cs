@@ -1,0 +1,102 @@
+namespace PlatformBase.Core.Entities;
+
+/// <summary>
+/// 实体主键标识接口（泛型），定义实体的唯一标识
+/// </summary>
+/// <typeparam name="TKey">主键类型，必须为值类型</typeparam>
+public interface IEntity<TKey> where TKey : struct
+{
+    /// <summary>实体主键</summary>
+    TKey Id { get; set; }
+}
+
+/// <summary>
+/// 实体主键标识接口（非泛型），便于通过反射批量获取实体类型
+/// </summary>
+public interface IEntity
+{
+}
+
+/// <summary>
+/// 实体基类（支持泛型主键类型）
+/// </summary>
+/// <typeparam name="TKey">主键类型，必须为值类型，推荐Guid、long、int</typeparam>
+public abstract class BaseEntity<TKey> : IEntity<TKey>, IEntity where TKey : struct
+{
+    /// <summary>主键ID</summary>
+    public TKey Id { get; set; }
+}
+
+/// <summary>
+/// 实体基类（默认Guid主键，.NET企业级主流方案）
+/// </summary>
+public abstract class BaseEntity : BaseEntity<Guid>
+{
+}
+
+/// <summary>
+/// 审计标记接口，实现此接口的实体将自动记录创建/修改时间
+/// </summary>
+public interface IAuditable
+{
+    /// <summary>创建时间</summary>
+    DateTime CreatedAt { get; set; }
+
+    /// <summary>创建人</summary>
+    string? CreatedBy { get; set; }
+
+    /// <summary>最后修改时间</summary>
+    DateTime? UpdatedAt { get; set; }
+
+    /// <summary>最后修改人</summary>
+    string? UpdatedBy { get; set; }
+}
+
+/// <summary>
+/// 可审计实体基类，自动追踪创建和修改时间
+/// </summary>
+public abstract class AuditableEntity : BaseEntity, IAuditable
+{
+    /// <summary>创建时间，默认为UTC当前时间</summary>
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>创建人</summary>
+    public string? CreatedBy { get; set; }
+
+    /// <summary>最后修改时间</summary>
+    public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>最后修改人</summary>
+    public string? UpdatedBy { get; set; }
+}
+
+/// <summary>
+/// 软删除标记接口，全局查询过滤器将自动排除已标记删除的实体
+/// </summary>
+public interface ISoftDelete
+{
+    /// <summary>是否已删除</summary>
+    bool IsDeleted { get; set; }
+
+    /// <summary>删除时间</summary>
+    DateTime? DeletedAt { get; set; }
+
+    /// <summary>删除人</summary>
+    string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// 可软删除的审计实体基类，同时具备审计追踪和软删除功能
+/// 软删除时自动记录删除时间和删除人
+/// </summary>
+public abstract class SoftDeleteEntity : AuditableEntity, ISoftDelete
+{
+    /// <summary>是否已删除，默认false</summary>
+    public bool IsDeleted { get; set; }
+
+    /// <summary>删除时间</summary>
+    public DateTime? DeletedAt { get; set; }
+
+    /// <summary>删除人</summary>
+    public string? DeletedBy { get; set; }
+}
