@@ -5,27 +5,58 @@
 **/packages/
 !**/packages/repositories.config
 
-## Rider / Visual Studio
+## NuGet
+*.nuget.props
+*.nuget.targets
+project.lock.json
+
+## Rider / Visual Studio / VS Code
 .idea/
+.vs/
+.vscode/
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
-.vs/
+*.sln.DotSettings.user
+
+## Database (SQLite)
+app.db
+app.db-shm
+app.db-wal
+*.db.bak
+
+## IdentityServer4
+tempkey.rsa
+tempkey.jwk
 
 ## Runtime & Logs
-*.db
-*.db-shm
-*.db-wal
 logs/
 *.log
 
-## Test Results
+## Test Results / Coverage
 TestResults/
 [Tt]est[Rr]esult*/
+coverage/
+*.coverage
+*.coveragexml
 
-## macOS
+## macOS / Linux
 .DS_Store
+Thumbs.db
+*~
+
+## Environment & Secrets
+.env
+.env.*
+!env.template
+appsettings.*.local.json
+secrets.json
+*.pfx
+!.well-known/
+
+## Docker
+docker-compose.override.yml
 
 ## Misc
 *.[Bb]uildLog.*

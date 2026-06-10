@@ -1,344 +1,179 @@
-# PlatformBase
+# PlatformBase / 平台底座
 
-**企业级 .NET 8 WebAPI 通用开发底座** —— 提供统一响应、审计追踪、软删除、多数据库、全局异常处理等开箱即用的基础设施，业务模块只需关注领域逻辑。
+**Enterprise-grade .NET 8 WebAPI Starter** — 企业级 .NET 8 WebAPI 通用开发底座。提供 JWT 认证授权、RBAC 权限管理、Redis 缓存、审计追踪、软删除、多数据库、统一响应等开箱即用的基础设施。
 
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
 [![EF Core](https://img.shields.io/badge/EF%20Core-8.0-512BD4)](https://learn.microsoft.com/en-us/ef/core/)
-[![Serilog](https://img.shields.io/badge/Serilog-structured-green)](https://serilog.net/)
+[![IdentityServer4](https://img.shields.io/badge/IdentityServer4-OAuth2%2FOIDC-blue)](https://duendesoftware.com/)
 [![Swagger](https://img.shields.io/badge/Swagger-OAS3-brightgreen)](https://swagger.io/)
+[![Redis](https://img.shields.io/badge/Redis-cache-red)](https://redis.io/)
+[![OpenCode](https://img.shields.io/badge/Built%20with-OpenCode-blue)](https://opencode.ai)
+[![DeepSeek](https://img.shields.io/badge/DeepSeek-V4%20Pro-4B6BFB)](https://deepseek.ai)
 
 ---
 
-## 架构
+## 架构 / Architecture
 
-采用 **Clean Architecture**（DDD 分层），依赖方向单向内聚：
+Clean Architecture (DDD 分层), dependency flows inward:
 
 ```
-Host (启动 / 配置 / 中间件)
-  └── Infrastructure (EF Core / 仓储实现)
-        └── Application (DTO / 应用服务接口)
-              └── Core (实体 / 异常 / 仓储契约 / 通用模型)
-                    ← 无外部依赖
+Host (Startup / Middleware / Controllers / IdentityServer4)
+  └── Infrastructure (EF Core / Repository)
+        └── Application (DTO / Service Interfaces)
+              └── Core (Entity / Repository Contracts / Models)
+                    ← zero external dependencies
 ```
 
-| 层 | 项目 | 职责 |
-|---|------|------|
-| **Core** | `PlatformBase.Core` | 实体基类、仓储契约、统一响应模型、异常定义、值对象基类 |
-| **Application** | `PlatformBase.Application` | DTO 基类、应用服务接口 |
-| **Infrastructure** | `PlatformBase.Infrastructure` | EF Core DbContext、仓储实现、工作单元、DI 注册扩展 |
-| **Host** | `PlatformBase.Host` | ASP.NET Core 启动、中间件、Controller、配置文件 |
+| Layer / 层 | Project / 项目 | Responsibility / 职责 |
+|-------------|----------------|------------------------|
+| **Core** | `PlatformBase.Core` | Entity hierarchy, repository contracts, unified response, exceptions, `ICurrentUserService` |
+| **Application** | `PlatformBase.Application` | DTOs, service interfaces (`IUserService`, `IPermissionService`) |
+| **Infrastructure** | `PlatformBase.Infrastructure` | EF Core `AppDbContext` (audit auto-fill), repository impl, unit of work |
+| **Host** | `PlatformBase.Host` | Startup, IdentityServer4, JWT auth, RBAC authorization, Redis, Swagger |
+
+> Detailed architecture decisions: [架构设计](docs/architecture.md)
 
 ---
 
-## 项目结构
+## 快速开始 / Quick Start
 
-```
-PlatformBase/
-├── PlatformBase.sln
-└── src/
-    ├── PlatformBase.Core/
-    │   ├── DatabaseProvider.cs              # 数据库类型枚举 (Sqlite/SqlServer/MySql)
-    │   ├── Primitives/
-    │   │   └── TypedId.cs                   # DDD 强类型 ID 值对象基类
-    │   ├── Entities/
-    │   │   └── BaseEntity.cs                # IEntity / BaseEntity<TKey> / AuditableEntity / SoftDeleteEntity
-    │   ├── Exceptions/
-    │   │   ├── BusinessException.cs          # 业务异常（含错误码）
-    │   │   └── ErrorCode.cs                 # 错误码常量定义
-    │   ├── Models/
-    │   │   ├── ApiResult.cs                 # 统一 API 响应体
-    │   │   ├── HealthReportModel.cs          # 健康检查报告模型
-    │   │   └── PagedResult.cs               # 分页请求 / 响应
-    │   └── Repositories/
-    │       ├── IRepository.cs               # 仓储契约 (Guid + 泛型主键)
-    │       └── IUnitOfWork.cs               # 工作单元契约（事务支持）
-    ├── PlatformBase.Application/
-    │   ├── Dtos/
-    │   │   └── BaseDto.cs                   # DTO 基类
-    │   └── Services/
-    │       └── ICrudService.cs              # 通用 CRUD 服务接口
-    ├── PlatformBase.Infrastructure/
-    │   ├── Data/
-    │   │   ├── AppDbContext.cs              # EF Core DbContext（软删除过滤 + 审计自动填充）
-    │   │   └── UnitOfWork.cs                # 工作单元实现
-    │   ├── Extensions/
-    │   │   └── ServiceCollectionExtensions.cs  # AddDatabase() DI 注册扩展
-    │   └── Repositories/
-    │       └── EfRepository.cs              # EF Core 仓储实现（分页 + 动态排序）
-    └── PlatformBase.Host/
-        ├── Controllers/
-        │   └── HealthController.cs           # 健康检查端点 (GET /health)
-        ├── Middleware/
-        │   └── GlobalExceptionMiddleware.cs   # 全局异常转 ApiResult
-        ├── Program.cs                        # 启动入口
-        ├── appsettings.json                  # 基础配置（含注释）
-        └── appsettings.Development.json      # 开发环境覆盖配置
-```
-
----
-
-## 快速开始
-
-### 前置条件
+### Prerequisites / 前置条件
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0)
+- Optional: [Redis](https://redis.io/) (auto-degrades to DB if not running)
 
-### 构建 & 运行
+### Build & Run / 构建 & 启动
 
 ```bash
-# 构建
 dotnet build
-
-# 启动（默认 SQLite + 端口 5269）
-cd src/PlatformBase.Host && dotnet run
+cd src/PlatformBase.Host && dotnet run   # default SQLite + port 5269
 ```
 
-### 验证
+### Verify / 验证
 
 ```bash
-# 健康检查
-curl http://localhost:5269/health
-
-# Swagger 文档 (仅开发环境)
-open http://localhost:5269/swagger
+curl http://localhost:5269/health                    # 200
+open http://localhost:5269/swagger                   # Swagger UI
+curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"Admin@123"}'
 ```
 
-### 健康检查响应示例
-
-```json
-{
-  "success": true,
-  "code": 200,
-  "message": "success",
-  "data": {
-    "status": "Healthy",
-    "duration": "00:00:00.0002970",
-    "entries": []
-  },
-  "traceId": null
-}
-```
+> Swagger: paste returned `accessToken` into **Authorize** 🔒 button → all APIs auto-attach `Authorization: Bearer`
 
 ---
 
-## 核心特性
+## 核心特性 / Core Features
 
-### 1. 统一 API 响应
-
-所有接口返回 `ApiResult<T>`，格式固定：
-
-```json
-{
-  "success": true,
-  "code": 200,
-  "message": "success",
-  "data": { ... },
-  "traceId": null
-}
-```
-
-```csharp
-// 成功
-return ApiResult<UserDto>.Ok(user);
-return ApiResult<UserDto>.Fail(ErrorCode.DataNotFound, "用户不存在");
-return ApiResult<>Fail("参数有误");
-
-// 业务异常（由中间件自动捕获）
-throw new BusinessException("用户名已存在", ErrorCode.DuplicateRecord);
-```
-
-### 2. 全局异常处理
-
-`GlobalExceptionMiddleware` 作为管道最前端，统一捕获两类异常：
-
-| 异常类型 | 处理方式 |
-|----------|----------|
-| `BusinessException` | Warning 日志 → `ApiResult.Fail(code, message)` |
-| 未处理异常 | Error 日志 → 开发环境返回堆栈，生产环境返回 `"Internal server error"` |
-
-### 3. Guid 主键
-
-- 默认 `BaseEntity` = `BaseEntity<Guid>`
-- 保留泛型 `BaseEntity<TKey>` 扩展点（支持 long、int 等）
-- 可选 DDD 强类型 ID：`public record UserId : TypedId<Guid>`
-
-### 4. 实体审计
-
-实现 `IAuditable` 或继承 `AuditableEntity`，`DbContext` 自动填充时间戳：
-
-| 字段 | 触发时机 |
-|------|----------|
-| `CreatedAt` | EntityState.Added |
-| `UpdatedAt` | EntityState.Modified |
-
-### 5. 软删除
-
-继承 `SoftDeleteEntity`，获得软删除能力：
-
-| 字段 | 说明 |
-|------|------|
-| `IsDeleted` | 软删除标记，全局查询过滤器自动排除 |
-| `DeletedAt` | 删除时自动记录 UTC 时间 |
-| `DeletedBy` | 删除人（待认证模块接入后自动填充） |
-
-```csharp
-uow.Repository<User>().SoftDelete(user);
-await uow.SaveChangesAsync();
-```
-
-### 6. 实体继承体系
-
-```
-BaseEntity<TKey>            ← 泛型主键
-  └─ BaseEntity (Guid)      ← 默认主键
-       ├─ AuditableEntity    ← + CreatedAt / UpdatedAt / CreatedBy / UpdatedBy
-       │    └─ SoftDeleteEntity  ← + IsDeleted / DeletedAt / DeletedBy
-       └─ BaseEntity          ← 纯 ID，无审计
-```
-
-### 7. 分页查询
-
-```csharp
-var request = new PagedRequest
-{
-    PageIndex = 1,
-    PageSize = 20,
-    SortField = "CreatedAt",
-    IsAscending = false
-};
-
-var result = await uow.Repository<User>().GetPagedAsync(request);
-// result.TotalCount / result.TotalPages / result.Items
-```
-
-### 8. 仓储 + 工作单元
-
-```csharp
-public class UserService : ICrudService<User, UserDto, CreateUserDto, UpdateUserDto>
-{
-    private readonly IUnitOfWork _uow;
-
-    public async Task<UserDto> CreateAsync(CreateUserDto dto, CancellationToken ct)
-    {
-        var user = new User { Name = dto.Name };
-        await _uow.Repository<User>().AddAsync(user, ct);
-        await _uow.SaveChangesAsync(ct);
-        return MapToDto(user);
-    }
-}
-```
+| Feature / 特性 | Description / 说明 | Details / 详情 |
+|----------------|---------------------|----------------|
+| JWT Auth / 认证 | IdentityServer4 + 自建 User 体系，X509 自签名证书，BCrypt 密码哈希 | [认证授权](docs/auth.md) |
+| RBAC Permissions / 权限 | 角色继承 + 用户直达权限 + `IsGranted` 覆盖 + Redis 缓存降级 | [权限管理](docs/permissions.md) |
+| Audit Tracking / 审计 | `ICurrentUserService` → `AppDbContext` auto-fills `CreatedBy` / `UpdatedBy` / `DeletedBy` | [架构设计](docs/architecture.md) |
+| Soft Delete / 软删除 | `SoftDeleteEntity` + global query filter auto-excludes deleted records | [数据库设计](docs/database.md) |
+| Unified Response / 统一响应 | `ApiResult<T>` — all endpoints return `{ success, code, message, data, traceId }` | [架构设计](docs/architecture.md) |
+| Multi-Database / 多数据库 | SQLite (default) / SQL Server / MySQL, config-driven switching | [数据库设计](docs/database.md) |
+| Paging & Sorting / 分页排序 | `PagedRequest` + dynamic `OrderBy` via expression trees | [开发指南](docs/dev-guide.md) |
+| Global Exception / 全局异常 | `GlobalExceptionMiddleware` catches `BusinessException` + unhandled | [架构设计](docs/architecture.md) |
+| Redis Cache / 缓存 | Permission cache + login rate-limit, auto-degrade to DB | [权限管理](docs/permissions.md) |
+| Structured Logging / 日志 | Serilog — Console + daily rolling file, 30-day retention | [架构设计](docs/architecture.md) |
+| Health Check / 健康检查 | `GET /health` — DB connectivity check | [部署指南](docs/deployment.md) |
+| Swagger JWT / 接口文档 | Bearer paste authorization flow, `POST /api/auth/login` | [开发指南](docs/dev-guide.md) |
 
 ---
 
-## 配置说明
+## 数据库 / Database
 
-### 数据库切换
+6 tables, auto-created on first run with seed data:
 
-修改 `appsettings.json` 中的 `Database:Provider` 和 `ConnectionString`：
+| Table / 表 | Description / 说明 |
+|-------------|---------------------|
+| `Users` | User entity (`SoftDeleteEntity` + BCrypt hash + lockout) |
+| `Roles` | Role definitions (permission groups) |
+| `UserRoles` | M:N user-role mapping |
+| `Permissions` | API endpoint definitions (Code + Path + Method) |
+| `RolePermissions` | M:N role-permission mapping |
+| `UserPermissions` | User direct permissions (with `IsGranted` override) |
+
+> Full schema: [数据库设计](docs/database.md)
+
+---
+
+## 配置 / Configuration
 
 ```jsonc
-// SQLite (默认，开发)
-"Database": {
-  "Provider": "Sqlite",
-  "ConnectionString": "Data Source=app.db"
-}
-
-// SQL Server
-"Database": {
-  "Provider": "SqlServer",
-  "ConnectionString": "Server=.;Database=PlatformBase;Trusted_Connection=true;TrustServerCertificate=true"
-}
-
-// MySQL
-"Database": {
-  "Provider": "MySql",
-  "ConnectionString": "Server=localhost;Database=PlatformBase;User=root;Password=123456;"
+{
+  "Database": { "Provider": "Sqlite", "ConnectionString": "Data Source=app.db" },
+  "Jwt": { "Secret": "min-32-chars...", "Issuer": "http://localhost:5269" },
+  "IdentityServer": { "Authority": "http://localhost:5269" },
+  "Redis": { "ConnectionString": "localhost:6379", "Enabled": true },
+  "Cors": { "AllowedOrigins": ["*"] }   // restrict in production
 }
 ```
 
-### 日志
-
-Serilog 输出策略（在 `appsettings.json` 中配置）：
-
-- **Console**：控制台实时输出
-- **File**：按天滚动写入 `logs/` 目录，保留最近 30 天
-
-### CORS
-
-生产环境应将 `AllowedOrigins` 改为具体域名，禁止使用 `*`。
+> Database switching, JWT config, production X509 certificates: [部署指南](docs/deployment.md)
 
 ---
 
-## 如何开始新业务模块
+## 技术栈 / Tech Stack
 
-```csharp
-// 1. Core 层 —— 定义实体
-public class Product : SoftDeleteEntity
-{
-    public string Name { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-}
-
-// 2. Application 层 —— 定义 DTO
-public class ProductDto : BaseDto
-{
-    public string Name { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-}
-
-public class CreateProductDto
-{
-    public string Name { get; set; } = string.Empty;
-    public decimal Price { get; set; }
-}
-
-// 3. Application 层 —— 定义服务
-public interface IProductService : ICrudService<Product, ProductDto, CreateProductDto, UpdateProductDto> { }
-
-// 4. Host 层 —— 写 Controller
-[ApiController]
-[Route("api/products")]
-public class ProductController : ControllerBase
-{
-    private readonly IProductService _service;
-
-    [HttpGet]
-    public async Task<ApiResult<PagedResult<ProductDto>>> Get([FromQuery] PagedRequest request)
-    {
-        var result = await _service.GetPagedAsync(request);
-        return ApiResult<PagedResult<ProductDto>>.Ok(result);
-    }
-}
-```
-
----
-
-## 技术栈
-
-| 类别 | 组件 | 说明 |
-|------|------|------|
-| 运行时 | .NET 8 (LTS) | 长期支持版本 |
-| Web 框架 | ASP.NET Core | Controller-based API |
+| Category / 类别 | Component / 组件 | Purpose / 用途 |
+|-----------------|-------------------|----------------|
+| Runtime | .NET 8 (LTS) | Long-term support |
+| Web Framework | ASP.NET Core | Controller-based API |
+| OAuth2/OIDC | IdentityServer4 | Token issuance (Password Grant) |
+| JWT Auth | JwtBearer + X509 | Access token validation |
+| Permissions | Custom RBAC | User/Role/Permission model |
 | ORM | EF Core 8 | SQLite / SQL Server / MySQL |
-| 日志 | Serilog | Console + 文件按天滚动 |
-| API 文档 | Swashbuckle | OpenAPI 3.0 |
-| 参数校验 | FluentValidation | 管道自动校验 |
+| Password | BCrypt.Net-Next | Password hashing |
+| Cache | StackExchange.Redis | Permission cache + rate-limit |
+| Logging | Serilog | Console + daily rolling file |
+| API Docs | Swashbuckle | OpenAPI 3.0 + Bearer JWT |
+| Validation | FluentValidation | Pipeline validation |
 
 ---
 
-## 路线图
+## 文档体系 / Documentation
 
-- [x] 统一响应 & 全局异常处理
-- [x] Guid 主键 + 强类型 ID
-- [x] 审计追踪 + 软删除
-- [x] 多数据库支持
-- [x] 分页 & 动态排序
-- [x] 仓储 + 工作单元
-- [x] 结构化日志
-- [x] 健康检查
-- [ ] JWT 认证 & 授权
-- [ ] 分布式缓存 (Redis)
-- [ ] 后台任务调度 (Hangfire)
-- [ ] 多租户支持
-- [ ] 事件总线
-- [ ] 分布式追踪 (OpenTelemetry)
+| Document / 文档 | Content / 内容 |
+|-----------------|-----------------|
+| [架构设计](docs/architecture.md) | Architecture decisions, middleware pipeline, entity hierarchy |
+| [认证授权](docs/auth.md) | JWT + IdentityServer4 + ICurrentUserService + audit |
+| [权限管理](docs/permissions.md) | RBAC model, `[Permission]` attribute, Redis cache |
+| [数据库设计](docs/database.md) | Table schema, entity relationships, seed data |
+| [开发指南](docs/dev-guide.md) | Add business modules, coding conventions |
+| [部署指南](docs/deployment.md) | Production X509 cert, K8s, nginx, troubleshooting |
+| [变更日志](docs/changelog.md) | Version history |
+
+---
+
+## 路线图 / Roadmap
+
+### 基础设施 / Infrastructure
+- [x] Unified response & global exception
+- [x] Guid PK + typed ID
+- [x] Audit tracking + soft delete (with `*By` auto-fill)
+- [x] Multi-database (SQLite / SQL Server / MySQL)
+- [x] Paging & dynamic sorting
+- [x] Repository + unit of work
+- [x] Structured logging (Serilog)
+- [x] Health check
+- [x] Swagger Bearer JWT integration
+
+### 认证授权 / Authentication & Authorization
+- [x] JWT auth (IdentityServer4 + custom User)
+- [x] RBAC permissions (role inheritance + user override + Redis)
+- [x] `ICurrentUserService` session context injection
+- [x] Login lockout + rate-limit (DB + Redis)
+
+### 基础业务模块 / Basic Business Modules
+- [ ] 系统参数 — Key-Value 配置中心，Redis 缓存 + 运行时修改无需重启
+- [ ] 数据字典 — 类型/项两级结构，Redis 缓存，支持层级 + 按编码批量获取
+- [ ] 操作日志 — 关键操作异步记录，分页检索，不阻塞请求
+- [ ] 文件管理 — 统一上传/下载/预览，本地存储 + OSS 扩展点
+
+### 进阶特性 / Advanced Features
+- [ ] Background jobs (Hangfire)
+- [ ] Multi-tenancy
+- [ ] Event bus
+- [ ] Distributed tracing (OpenTelemetry)

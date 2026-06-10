@@ -40,6 +40,27 @@ public static class ErrorCode
     /// <summary>非法操作</summary>
     public const int InvalidOperation = 1003;
 
+    /// <summary>令牌已过期</summary>
+    public const int TokenExpired = 1004;
+
+    /// <summary>令牌无效</summary>
+    public const int TokenInvalid = 1005;
+
+    /// <summary>用户不存在</summary>
+    public const int UserNotFound = 1006;
+
+    /// <summary>密码错误</summary>
+    public const int PasswordMismatch = 1007;
+
+    /// <summary>用户已被锁定</summary>
+    public const int UserLocked = 1008;
+
+    /// <summary>请求过于频繁</summary>
+    public const int TooManyRequests = 1009;
+
+    /// <summary>无权限访问</summary>
+    public const int PermissionDenied = 1010;
+
     // ========== 基础设施错误码（2000 起） ==========
 
     /// <summary>数据库错误</summary>

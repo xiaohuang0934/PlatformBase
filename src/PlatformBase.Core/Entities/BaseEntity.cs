@@ -42,14 +42,14 @@ public interface IAuditable
     /// <summary>创建时间</summary>
     DateTime CreatedAt { get; set; }
 
-    /// <summary>创建人</summary>
-    string? CreatedBy { get; set; }
+    /// <summary>创建人用户ID</summary>
+    Guid? CreatedBy { get; set; }
 
     /// <summary>最后修改时间</summary>
     DateTime? UpdatedAt { get; set; }
 
-    /// <summary>最后修改人</summary>
-    string? UpdatedBy { get; set; }
+    /// <summary>最后修改人用户ID</summary>
+    Guid? UpdatedBy { get; set; }
 }
 
 /// <summary>
@@ -60,14 +60,14 @@ public abstract class AuditableEntity : BaseEntity, IAuditable
     /// <summary>创建时间，默认为UTC当前时间</summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>创建人</summary>
-    public string? CreatedBy { get; set; }
+    /// <summary>创建人用户ID</summary>
+    public Guid? CreatedBy { get; set; }
 
     /// <summary>最后修改时间</summary>
     public DateTime? UpdatedAt { get; set; }
 
-    /// <summary>最后修改人</summary>
-    public string? UpdatedBy { get; set; }
+    /// <summary>最后修改人用户ID</summary>
+    public Guid? UpdatedBy { get; set; }
 }
 
 /// <summary>
@@ -81,8 +81,8 @@ public interface ISoftDelete
     /// <summary>删除时间</summary>
     DateTime? DeletedAt { get; set; }
 
-    /// <summary>删除人</summary>
-    string? DeletedBy { get; set; }
+    /// <summary>删除操作用户ID</summary>
+    Guid? DeletedBy { get; set; }
 }
 
 /// <summary>
@@ -97,6 +97,6 @@ public abstract class SoftDeleteEntity : AuditableEntity, ISoftDelete
     /// <summary>删除时间</summary>
     public DateTime? DeletedAt { get; set; }
 
-    /// <summary>删除人</summary>
-    public string? DeletedBy { get; set; }
+    /// <summary>删除操作用户ID</summary>
+    public Guid? DeletedBy { get; set; }
 }
