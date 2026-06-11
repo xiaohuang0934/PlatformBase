@@ -16,12 +16,15 @@
     "Secret": "your-secret-key-min-32-characters-long",
     "Issuer": "http://localhost:5269",
     "Audience": "api1",
-    "AccessTokenExpiration": 300    // 秒，默认 300（5 分钟）
+    "AccessTokenLifetimeMinutes": 60    // 分钟，默认 60（可通过 SystemParam access_token_lifetime 覆盖）
   },
 
   // ═══════════════════ IdentityServer ═══════════════════
   "IdentityServer": {
-    "Authority": "http://localhost:5269"  // 签发者地址
+    "Authority": "http://localhost:5269",  // 签发者地址
+    "SigningCertSource": "File",           // 签名证书来源: File / Base64 / Store
+    "SigningCertPath": "",                 // 证书路径 (SigningCertSource=File)
+    "SigningCertPassword": ""              // 证书密码
   },
 
   // ═══════════════════ Redis 缓存 ═══════════════════
@@ -35,6 +38,8 @@
   "Cors": {
     "AllowedOrigins": ["*"]         // 生产环境改为具体域名
   },
+
+  "AllowedHosts": "*",             // 允许访问的主机名
 
   // ═══════════════════ 文件存储 ═══════════════════
   "FileStorage": {

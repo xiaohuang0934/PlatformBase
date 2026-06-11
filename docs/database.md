@@ -23,6 +23,9 @@
 | `Notifications` | 自建 | `Guid` | 通知记录 |
 | `OrganizationUnits` | 自建 | `Guid` | 组织架构（物化路径） |
 | `Menus` | 自建 | `Guid` | 菜单（树形+权限绑定） |
+| `PersistedGrants` | IdentityServer4 | `nvarchar(200)` | 持久化授权（refresh_token 等） |
+| `TenantDataDictTypes` | 自建 | `Guid` | 租户字典类型覆盖 |
+| `TenantDataDictItems` | 自建 | `Guid` | 租户字典项覆盖 |
 
 > **注意**：PlatformBase 不依赖 ASP.NET Core Identity，所有表均为自建实体。关联表（UserRoles / RolePermissions / UserPermissions）使用复合主键，不继承 BaseEntity 体系。
 

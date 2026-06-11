@@ -5,7 +5,7 @@
 ### Step 1: Core 层 — 定义实体 / Define Entity
 
 ```csharp
-// src/PlatformBase.Core/Entities/Product.cs
+// src/PlatformBase.Core/Entities/Product.cs  （注：Entity 层不分模块）
 public class Product : SoftDeleteEntity
 {
     public string Name { get; set; } = string.Empty;
@@ -23,7 +23,7 @@ public class Product : SoftDeleteEntity
 ### Step 2: Application 层 — 定义 DTO + Service 接口
 
 ```csharp
-// src/PlatformBase.Application/Dtos/ProductDto.cs
+// src/PlatformBase.Application/Dtos/ProductModule/ProductDto.cs （注：按 Module 子目录组织）
 public class ProductDto
 {
     public Guid Id { get; set; }
@@ -31,14 +31,14 @@ public class ProductDto
     public decimal Price { get; set; }
 }
 
-// src/PlatformBase.Application/Dtos/CreateProductDto.cs
+// src/PlatformBase.Application/Dtos/ProductModule/CreateProductDto.cs
 public class CreateProductDto
 {
     public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
 }
 
-// src/PlatformBase.Application/Services/IProductService.cs
+// src/PlatformBase.Application/Services/ProductModule/IProductService.cs （注：按 Module 子目录）
 public interface IProductService
 {
     Task<PagedResult<ProductDto>> GetPagedAsync(PagedRequest request, CancellationToken ct);

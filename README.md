@@ -93,7 +93,7 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 
 ## 数据库 / Database
 
-20 tables, auto-created on first run with seed data:
+22 tables, auto-created on first run with seed data:
 
 | Table / 表 | Description / 说明 |
 |-------------|---------------------|
