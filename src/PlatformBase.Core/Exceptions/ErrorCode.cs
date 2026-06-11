@@ -2,16 +2,19 @@ namespace PlatformBase.Core.Exceptions;
 
 /// <summary>
 /// 系统错误码定义
+/// 所有响应统一 HTTP 200，错误信息在 ApiResult body 中
 /// </summary>
 public static class ErrorCode
 {
     /// <summary>未知错误</summary>
     public const int Unknown = -1;
 
+    // ========== 通用错误 ==========
+
     /// <summary>请求参数错误</summary>
     public const int BadRequest = 400;
 
-    /// <summary>未认证</summary>
+    /// <summary>未认证（Token 无效或过期）</summary>
     public const int Unauthorized = 401;
 
     /// <summary>无权限访问</summary>
@@ -57,9 +60,6 @@ public static class ErrorCode
 
     /// <summary>请求过于频繁</summary>
     public const int TooManyRequests = 1009;
-
-    /// <summary>无权限访问</summary>
-    public const int PermissionDenied = 1010;
 
     // ========== 基础设施错误码（2000 起） ==========
 

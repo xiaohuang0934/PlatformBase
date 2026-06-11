@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlatformBase.Application.Dtos;
@@ -12,8 +13,9 @@ namespace PlatformBase.Host.Controllers;
 /// 数据字典管理 API 控制器
 /// 提供字典类型/项的 CRUD 管理及高性能快查端点
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/data-dict")]
+[Route("api/v{version:apiVersion}/data-dict")]
 public class DataDictController : ControllerBase
 {
     private readonly IDataDictService _service;

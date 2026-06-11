@@ -79,21 +79,43 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 | Structured Logging / 日志 | Serilog — Console + daily rolling file, 30-day retention | [架构设计](docs/architecture.md) |
 | Health Check / 健康检查 | `GET /health` — DB connectivity check | [部署指南](docs/deployment.md) |
 | Swagger JWT / 接口文档 | Bearer paste authorization flow, `POST /api/auth/login` | [开发指南](docs/dev-guide.md) |
+| Multi-Tenancy / 多租户 | ITenantAware 全局过滤器 + 平台/租户双表方案 + 参数继承 | [架构设计](docs/architecture.md) |
+| System Params / 系统参数 | Key-Value 配置中心，功能开关，Redis 缓存降级 | [开发指南](docs/dev-guide.md) |
+| Data Dictionary / 数据字典 | 两级 Type/Item 结构 + 层级 ParentId + Redis 缓存 | [开发指南](docs/dev-guide.md) |
+| Background Jobs / 定时任务 | Hangfire，API 启停/动态Cron/手动触发，Dashboard | [开发指南](docs/dev-guide.md) |
+| Event Bus / 事件总线 | System.Threading.Channels，预留 RabbitMQ 切换 | [架构设计](docs/architecture.md) |
+| Operation Log / 操作日志 | ActionFilter 自动记录，Hangfire 异步入队，分页检索 | [开发指南](docs/dev-guide.md) |
+| File Management / 文件管理 | 统一上传/下载，本地存储 + OSS 可插拔 | [开发指南](docs/dev-guide.md) |
+| Menu Management / 菜单管理 | 树形菜单 + PermissionCode 权限绑定 + 权限裁剪 | [开发指南](docs/dev-guide.md) |
+| API Versioning / 版本管理 | UrlSegment 版本化 `v{version}` + Swagger 分组 | [开发指南](docs/dev-guide.md) |
 
 ---
 
 ## 数据库 / Database
 
-6 tables, auto-created on first run with seed data:
+20 tables, auto-created on first run with seed data:
 
 | Table / 表 | Description / 说明 |
 |-------------|---------------------|
-| `Users` | User entity (`SoftDeleteEntity` + BCrypt hash + lockout) |
-| `Roles` | Role definitions (permission groups) |
-| `UserRoles` | M:N user-role mapping |
-| `Permissions` | API endpoint definitions (Code + Path + Method) |
-| `RolePermissions` | M:N role-permission mapping |
-| `UserPermissions` | User direct permissions (with `IsGranted` override) |
+| `Users` | User (SoftDeleteEntity + BCrypt + TenantId) |
+| `Roles` | Role definitions (AuditableEntity + TenantId) |
+| `UserRoles` | M:N user-role |
+| `Permissions` | API permission definitions |
+| `RolePermissions` | M:N role-permission |
+| `UserPermissions` | User direct permissions (IsGranted) |
+| `SystemParams` | System parameters (Key-Value) |
+| `DataDictTypes` | Data dictionary types |
+| `DataDictItems` | Data dictionary items (tree) |
+| `OperationLogs` | Operation logs (async write) |
+| `FileAttachments` | File storage metadata |
+| `JobSchedules` | Background job schedules |
+| `Tenants` | Multi-tenant |
+| `PlatformUserTenants` | Platform user-tenant mapping |
+| `TenantParams` | Tenant parameter overrides |
+| `NotificationTemplates` | Notification templates |
+| `Notifications` | User notifications |
+| `OrganizationUnits` | Org tree (Materialized Path) |
+| `Menus` | Menu tree + permission binding |
 
 > Full schema: [数据库设计](docs/database.md)
 
@@ -138,6 +160,12 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 | Document / 文档 | Content / 内容 |
 |-----------------|-----------------|
 | [架构设计](docs/architecture.md) | Architecture decisions, middleware pipeline, entity hierarchy |
+| [设计决策](docs/design-decisions.md) | 关键设计决策及备选方案对比 |
+| [代码模式](docs/patterns.md) | 代码模式与小巧思（AppendIf, 缓存降级, 物化路径等） |
+| [模块业务](docs/modules.md) | 各模块业务逻辑完整说明 |
+| [API 参考](docs/api-reference.md) | 92 个端点全量清单（路由/方法/权限） |
+| [错误码](docs/error-codes.md) | ErrorCode 完整体系及客户端处理建议 |
+| [配置参考](docs/configuration.md) | appsettings.json 完整说明 + 数据库切换 |
 | [认证授权](docs/auth.md) | JWT + IdentityServer4 + ICurrentUserService + audit |
 | [权限管理](docs/permissions.md) | RBAC model, `[Permission]` attribute, Redis cache |
 | [数据库设计](docs/database.md) | Table schema, entity relationships, seed data |
@@ -167,13 +195,27 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 - [x] Login lockout + rate-limit (DB + Redis)
 
 ### 基础业务模块 / Basic Business Modules
-- [ ] 系统参数 — Key-Value 配置中心，Redis 缓存 + 运行时修改无需重启
-- [ ] 数据字典 — 类型/项两级结构，Redis 缓存，支持层级 + 按编码批量获取
-- [ ] 操作日志 — 关键操作异步记录，分页检索，不阻塞请求
-- [ ] 文件管理 — 统一上传/下载/预览，本地存储 + OSS 扩展点
+- [x] 系统参数 — Key-Value 配置中心，Redis 缓存 + 运行时修改无需重启
+- [x] 数据字典 — 类型/项两级结构，Redis 缓存，支持层级 + 按编码批量获取
+- [x] 用户管理 — 完整 CRUD + 角色分配 + 启用/禁用 + 密码重置
+- [x] 角色管理 — 完整 CRUD + 权限分配
+- [x] 权限管理 — 完整 CRUD + 级联清理
+- [x] 操作日志 — 关键操作异步记录（Hangfire），`[OperationLog]` ActionFilter
+- [x] 消息通知 — 站内信 + 消息模板（welcome/password_changed/account_locked）
+- [x] 部门管理 — 树形组织架构，关联用户
+- [x] 文件管理 — 统一上传/下载/预览，本地存储 + OSS 扩展点
+- [x] 数据导入导出 — 通用 Excel/CSV 导入导出
+- [x] 菜单管理 — 树形菜单 / 按钮级权限绑定 / 前端动态路由
+- [x] 数据权限 — [DataScope] ActionFilter，物化路径行级过滤
 
 ### 进阶特性 / Advanced Features
-- [ ] Background jobs (Hangfire)
-- [ ] Multi-tenancy
-- [ ] Event bus
-- [ ] Distributed tracing (OpenTelemetry)
+- [x] Background jobs (Hangfire) — API 启停/动态Cron/手动触发/Dashboard
+- [x] 事件总线 — Channel 发布订阅，预留 RabbitMQ 切换
+- [x] 多租户 — ITenantAware 全局过滤器，租户/平台双表方案
+- [x] 分布式锁 — Redis NX/EX，防止定时任务重复执行
+- [x] 分布式 ID 生成 — GuidIdGenerator（可替换 Snowflake）
+- [x] API 版本管理 — `[ApiVersion]` + Swagger 分组
+- [x] API 限流 — `[RateLimit]` ActionFilter，Redis 滑动窗口
+- [x] 国际化 — `IStringLocalizer` + Resource.resx 中/英
+- [ ] 客户端管理 — 多端 Client 注册管理（预留）
+- [ ] 分布式追踪 (OpenTelemetry) — 链路追踪（按需启用）

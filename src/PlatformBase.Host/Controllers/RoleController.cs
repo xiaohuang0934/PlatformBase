@@ -1,17 +1,20 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using PlatformBase.Application.Dtos;
 using PlatformBase.Application.Services;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Host.Authorization;
+using PlatformBase.Host.Filters;
 
 namespace PlatformBase.Host.Controllers;
 
 /// <summary>
 /// 角色管理 API 控制器，提供角色的完整 CRUD + 权限分配/查询
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/roles")]
+[Route("api/v{version:apiVersion}/roles")]
 public class RoleController : ControllerBase
 {
     private readonly IRoleService _service;
@@ -45,6 +48,7 @@ public class RoleController : ControllerBase
     /// <summary>创建角色</summary>
     [HttpPost]
     [Permission("roles.create")]
+    [OperationLog("create", Resource = "Role")]
     public async Task<ApiResult<RoleDto>> Create(
         [FromBody] CreateRoleDto dto, CancellationToken ct)
     {
@@ -55,6 +59,7 @@ public class RoleController : ControllerBase
     /// <summary>更新角色</summary>
     [HttpPut("{id:guid}")]
     [Permission("roles.edit")]
+    [OperationLog("update", Resource = "Role")]
     public async Task<ApiResult<RoleDto>> Update(
         Guid id, [FromBody] UpdateRoleDto dto, CancellationToken ct)
     {
@@ -65,6 +70,7 @@ public class RoleController : ControllerBase
     /// <summary>删除角色（需先确保无用户关联）</summary>
     [HttpDelete("{id:guid}")]
     [Permission("roles.delete")]
+    [OperationLog("delete", Resource = "Role")]
     public async Task<ApiResult> Delete(Guid id, CancellationToken ct)
     {
         await _service.DeleteAsync(id, ct);
@@ -83,6 +89,7 @@ public class RoleController : ControllerBase
     /// <summary>给角色批量分配权限（全量替换）</summary>
     [HttpPut("{id:guid}/permissions")]
     [Permission("roles.edit")]
+    [OperationLog("update", Resource = "Role:Permissions")]
     public async Task<ApiResult> AssignPermissions(
         Guid id, [FromBody] IReadOnlyList<string> permissionCodes, CancellationToken ct)
     {

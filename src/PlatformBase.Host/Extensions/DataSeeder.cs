@@ -30,6 +30,9 @@ public static class DataSeeder
         await SeedTestUserAsync(uow, context, adminId);
         await SeedSystemParamsAsync(uow, adminId);
         await SeedDataDictAsync(uow, context, adminId);
+        await SeedNotificationTemplatesAsync(uow, adminId);
+        await SeedTenantsAsync(uow, context, adminId);
+        await SeedMenusAsync(uow, adminId);
 
         scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
             .CreateLogger("DataSeeder")
@@ -190,35 +193,62 @@ public static class DataSeeder
 
     private static Permission[] GetSeedPermissions() =>
     [
-        new() { Code = "users.list", Name = "用户列表", ResourcePath = "/api/users", HttpMethod = "GET", GroupName = "用户管理", SortOrder = 1 },
-        new() { Code = "users.create", Name = "创建用户", ResourcePath = "/api/users", HttpMethod = "POST", GroupName = "用户管理", SortOrder = 2 },
-        new() { Code = "users.edit", Name = "编辑用户", ResourcePath = "/api/users", HttpMethod = "PUT", GroupName = "用户管理", SortOrder = 3 },
-        new() { Code = "users.delete", Name = "删除用户", ResourcePath = "/api/users", HttpMethod = "DELETE", GroupName = "用户管理", SortOrder = 4 },
-        new() { Code = "roles.list", Name = "角色列表", ResourcePath = "/api/roles", HttpMethod = "GET", GroupName = "角色管理", SortOrder = 1 },
-        new() { Code = "roles.create", Name = "创建角色", ResourcePath = "/api/roles", HttpMethod = "POST", GroupName = "角色管理", SortOrder = 2 },
-        new() { Code = "roles.edit", Name = "编辑角色", ResourcePath = "/api/roles", HttpMethod = "PUT", GroupName = "角色管理", SortOrder = 3 },
-        new() { Code = "roles.delete", Name = "删除角色", ResourcePath = "/api/roles", HttpMethod = "DELETE", GroupName = "角色管理", SortOrder = 4 },
-        new() { Code = "perms.list", Name = "权限列表", ResourcePath = "/api/permissions", HttpMethod = "GET", GroupName = "权限管理", SortOrder = 1 },
-        new() { Code = "system-params.list", Name = "系统参数列表", ResourcePath = "/api/system-params", HttpMethod = "GET", GroupName = "系统管理", SortOrder = 1 },
-        new() { Code = "system-params.create", Name = "创建系统参数", ResourcePath = "/api/system-params", HttpMethod = "POST", GroupName = "系统管理", SortOrder = 2 },
-        new() { Code = "system-params.edit", Name = "编辑系统参数", ResourcePath = "/api/system-params", HttpMethod = "PUT", GroupName = "系统管理", SortOrder = 3 },
-        new() { Code = "system-params.delete", Name = "删除系统参数", ResourcePath = "/api/system-params", HttpMethod = "DELETE", GroupName = "系统管理", SortOrder = 4 },
-        new() { Code = "datadict.list", Name = "字典列表", ResourcePath = "/api/data-dict", HttpMethod = "GET", GroupName = "系统管理", SortOrder = 5 },
-        new() { Code = "datadict.create", Name = "创建字典", ResourcePath = "/api/data-dict", HttpMethod = "POST", GroupName = "系统管理", SortOrder = 6 },
-        new() { Code = "datadict.edit", Name = "编辑字典", ResourcePath = "/api/data-dict", HttpMethod = "PUT", GroupName = "系统管理", SortOrder = 7 },
-        new() { Code = "datadict.delete", Name = "删除字典", ResourcePath = "/api/data-dict", HttpMethod = "DELETE", GroupName = "系统管理", SortOrder = 8 },
-        new() { Code = "jobs.list", Name = "任务列表", ResourcePath = "/api/jobs", HttpMethod = "GET", GroupName = "系统管理", SortOrder = 9 },
-        new() { Code = "jobs.manage", Name = "任务管理", ResourcePath = "/api/jobs", HttpMethod = "POST", GroupName = "系统管理", SortOrder = 10 }
+        new() { Code = "users.list", Name = "用户列表", ResourcePath = "/api/v1/users", HttpMethod = "GET", GroupName = "用户管理", SortOrder = 1 },
+        new() { Code = "users.create", Name = "创建用户", ResourcePath = "/api/v1/users", HttpMethod = "POST", GroupName = "用户管理", SortOrder = 2 },
+        new() { Code = "users.edit", Name = "编辑用户", ResourcePath = "/api/v1/users", HttpMethod = "PUT", GroupName = "用户管理", SortOrder = 3 },
+        new() { Code = "users.delete", Name = "删除用户", ResourcePath = "/api/v1/users", HttpMethod = "DELETE", GroupName = "用户管理", SortOrder = 4 },
+        new() { Code = "roles.list", Name = "角色列表", ResourcePath = "/api/v1/roles", HttpMethod = "GET", GroupName = "角色管理", SortOrder = 1 },
+        new() { Code = "roles.create", Name = "创建角色", ResourcePath = "/api/v1/roles", HttpMethod = "POST", GroupName = "角色管理", SortOrder = 2 },
+        new() { Code = "roles.edit", Name = "编辑角色", ResourcePath = "/api/v1/roles", HttpMethod = "PUT", GroupName = "角色管理", SortOrder = 3 },
+        new() { Code = "roles.delete", Name = "删除角色", ResourcePath = "/api/v1/roles", HttpMethod = "DELETE", GroupName = "角色管理", SortOrder = 4 },
+        new() { Code = "perms.list", Name = "权限列表", ResourcePath = "/api/v1/permissions", HttpMethod = "GET", GroupName = "权限管理", SortOrder = 1 },
+        new() { Code = "perms.create", Name = "创建权限", ResourcePath = "/api/v1/permissions", HttpMethod = "POST", GroupName = "权限管理", SortOrder = 2 },
+        new() { Code = "perms.edit", Name = "编辑权限", ResourcePath = "/api/v1/permissions", HttpMethod = "PUT", GroupName = "权限管理", SortOrder = 3 },
+        new() { Code = "perms.delete", Name = "删除权限", ResourcePath = "/api/v1/permissions", HttpMethod = "DELETE", GroupName = "权限管理", SortOrder = 4 },
+        new() { Code = "system-params.list", Name = "系统参数列表", ResourcePath = "/api/v1/system-params", HttpMethod = "GET", GroupName = "系统管理", SortOrder = 1 },
+        new() { Code = "system-params.create", Name = "创建系统参数", ResourcePath = "/api/v1/system-params", HttpMethod = "POST", GroupName = "系统管理", SortOrder = 2 },
+        new() { Code = "system-params.edit", Name = "编辑系统参数", ResourcePath = "/api/v1/system-params", HttpMethod = "PUT", GroupName = "系统管理", SortOrder = 3 },
+        new() { Code = "system-params.delete", Name = "删除系统参数", ResourcePath = "/api/v1/system-params", HttpMethod = "DELETE", GroupName = "系统管理", SortOrder = 4 },
+        new() { Code = "datadict.list", Name = "字典列表", ResourcePath = "/api/v1/data-dict", HttpMethod = "GET", GroupName = "系统管理", SortOrder = 5 },
+        new() { Code = "datadict.create", Name = "创建字典", ResourcePath = "/api/v1/data-dict", HttpMethod = "POST", GroupName = "系统管理", SortOrder = 6 },
+        new() { Code = "datadict.edit", Name = "编辑字典", ResourcePath = "/api/v1/data-dict", HttpMethod = "PUT", GroupName = "系统管理", SortOrder = 7 },
+        new() { Code = "datadict.delete", Name = "删除字典", ResourcePath = "/api/v1/data-dict", HttpMethod = "DELETE", GroupName = "系统管理", SortOrder = 8 },
+        new() { Code = "jobs.list", Name = "任务列表", ResourcePath = "/api/v1/jobs", HttpMethod = "GET", GroupName = "系统管理", SortOrder = 9 },
+        new() { Code = "jobs.manage", Name = "任务管理", ResourcePath = "/api/v1/jobs", HttpMethod = "POST", GroupName = "系统管理", SortOrder = 10 },
+        new() { Code = "operation-logs.list", Name = "操作日志列表", ResourcePath = "/api/v1/operation-logs", HttpMethod = "GET", GroupName = "系统管理", SortOrder = 11 },
+        new() { Code = "files.upload", Name = "文件管理", ResourcePath = "/api/v1/files", HttpMethod = "POST", GroupName = "系统管理", SortOrder = 12 },
+        new() { Code = "tenants.list", Name = "租户列表", ResourcePath = "/api/v1/tenants", HttpMethod = "GET", GroupName = "多租户", SortOrder = 1 },
+        new() { Code = "tenants.create", Name = "创建租户", ResourcePath = "/api/v1/tenants", HttpMethod = "POST", GroupName = "多租户", SortOrder = 2 },
+        new() { Code = "tenants.edit", Name = "编辑租户", ResourcePath = "/api/v1/tenants", HttpMethod = "PUT", GroupName = "多租户", SortOrder = 3 },
+        new() { Code = "tenants.delete", Name = "删除租户", ResourcePath = "/api/v1/tenants", HttpMethod = "DELETE", GroupName = "多租户", SortOrder = 4 },
+        new() { Code = "tenant-params.list", Name = "租户参数列表", ResourcePath = "/api/v1/tenant-params", HttpMethod = "GET", GroupName = "多租户", SortOrder = 5 },
+        new() { Code = "tenant-params.create", Name = "创建租户参数", ResourcePath = "/api/v1/tenant-params", HttpMethod = "POST", GroupName = "多租户", SortOrder = 6 },
+        new() { Code = "tenant-params.edit", Name = "编辑租户参数", ResourcePath = "/api/v1/tenant-params", HttpMethod = "PUT", GroupName = "多租户", SortOrder = 7 },
+        new() { Code = "tenant-params.delete", Name = "删除租户参数", ResourcePath = "/api/v1/tenant-params", HttpMethod = "DELETE", GroupName = "多租户", SortOrder = 8 },
+        new() { Code = "org-units.list", Name = "组织架构列表", ResourcePath = "/api/v1/organization-units", HttpMethod = "GET", GroupName = "组织架构", SortOrder = 1 },
+        new() { Code = "org-units.create", Name = "创建部门", ResourcePath = "/api/v1/organization-units", HttpMethod = "POST", GroupName = "组织架构", SortOrder = 2 },
+        new() { Code = "org-units.edit", Name = "编辑部门", ResourcePath = "/api/v1/organization-units", HttpMethod = "PUT", GroupName = "组织架构", SortOrder = 3 },
+        new() { Code = "org-units.delete", Name = "删除部门", ResourcePath = "/api/v1/organization-units", HttpMethod = "DELETE", GroupName = "组织架构", SortOrder = 4 },
+        new() { Code = "menus.list", Name = "菜单列表", ResourcePath = "/api/v1/menus", HttpMethod = "GET", GroupName = "菜单管理", SortOrder = 1 },
+        new() { Code = "menus.create", Name = "创建菜单", ResourcePath = "/api/v1/menus", HttpMethod = "POST", GroupName = "菜单管理", SortOrder = 2 },
+        new() { Code = "menus.edit", Name = "编辑菜单", ResourcePath = "/api/v1/menus", HttpMethod = "PUT", GroupName = "菜单管理", SortOrder = 3 },
+        new() { Code = "menus.delete", Name = "删除菜单", ResourcePath = "/api/v1/menus", HttpMethod = "DELETE", GroupName = "菜单管理", SortOrder = 4 },
+        new() { Code = "notifications.manage", Name = "通知管理", ResourcePath = "/api/v1/notifications", HttpMethod = "POST", GroupName = "系统管理", SortOrder = 13 }
     ];
 
     private static (string RoleName, string[] PermCodes)[] GetSeedRolePermissions() =>
     [
         ("Admin", ["users.list", "users.create", "users.edit", "users.delete",
                    "roles.list", "roles.create", "roles.edit", "roles.delete",
-                   "perms.list",
+                   "perms.list", "perms.create", "perms.edit", "perms.delete",
                    "system-params.list", "system-params.create", "system-params.edit", "system-params.delete",
                    "datadict.list", "datadict.create", "datadict.edit", "datadict.delete",
-                   "jobs.list", "jobs.manage"]),
+                   "jobs.list", "jobs.manage", "operation-logs.list", "files.upload",
+                   "tenants.list", "tenants.create", "tenants.edit", "tenants.delete",
+                   "tenant-params.list", "tenant-params.create", "tenant-params.edit", "tenant-params.delete",
+                   "org-units.list", "org-units.create", "org-units.edit", "org-units.delete",
+                   "menus.list", "menus.create", "menus.edit", "menus.delete",
+                   "notifications.manage"]),
         ("Manager", ["users.list", "roles.list", "perms.list"]),
         ("User", ["users.list"])
     ];
@@ -316,4 +346,124 @@ public static class DataSeeder
         new() { DictTypeId = enabledStatusTypeId ?? Guid.Empty, ItemCode = "enabled",  ItemName = "启用", SortOrder = 1 },
         new() { DictTypeId = enabledStatusTypeId ?? Guid.Empty, ItemCode = "disabled", ItemName = "禁用", SortOrder = 2 }
     ];
+
+    /// <summary>初始化通知模板种子数据（幂等）</summary>
+    private static async Task SeedNotificationTemplatesAsync(IUnitOfWork uow, Guid createdBy)
+    {
+        var existingCodes = (await uow.Repository<NotificationTemplate>().GetAllAsync())
+            .Select(t => t.Code).ToHashSet();
+
+        foreach (var seed in GetSeedNotificationTemplates())
+        {
+            if (existingCodes.Contains(seed.Code)) continue;
+            seed.CreatedBy = createdBy;
+            await uow.Repository<NotificationTemplate>().AddAsync(seed);
+        }
+        await uow.SaveChangesAsync();
+    }
+
+    private static NotificationTemplate[] GetSeedNotificationTemplates() =>
+    [
+        new() { Code = "welcome",      Name = "欢迎注册",   TitleTemplate = "欢迎加入 {siteName}",
+                 BodyTemplate = "尊敬的 {username}：您已成功注册，请登录系统完成信息设置。",
+                 Channel = "in_app", Variables = "username,siteName" },
+        new() { Code = "password_changed", Name = "密码已修改", TitleTemplate = "密码修改通知",
+                 BodyTemplate = "尊敬的用户：您的登录密码已于 {time} 被修改。如非本人操作，请联系管理员。",
+                 Channel = "in_app", Variables = "time" },
+        new() { Code = "account_locked", Name = "账户已锁定", TitleTemplate = "账户锁定通知",
+                 BodyTemplate = "尊敬的用户：您的账户因 {failedCount} 次登录失败已被锁定 {lockMinutes} 分钟。",
+                 Channel = "in_app", Variables = "failedCount,lockMinutes" }
+    ];
+
+    /// <summary>初始化多租户种子数据（幂等）</summary>
+    private static async Task SeedTenantsAsync(IUnitOfWork uow, AppDbContext context, Guid createdBy)
+    {
+        // 默认租户
+        var tenantExists = await uow.Repository<Tenant>().AnyAsync(t => t.Code == "default");
+        if (!tenantExists)
+        {
+            await uow.Repository<Tenant>().AddAsync(new Tenant
+            {
+                Code = "default", Name = "默认租户", ContactEmail = "tenant@platformbase.com",
+                IsEnabled = true, CreatedBy = createdBy
+            });
+            await uow.SaveChangesAsync();
+        }
+
+        var defaultTenant = await uow.Repository<Tenant>()
+            .FirstOrDefaultAsync(t => t.Code == "default");
+        if (defaultTenant == null) return;
+
+        // 更新 admin 为平台管理员
+        var admin = await uow.Repository<User>()
+            .FirstOrDefaultAsync(u => u.NormalizedUsername == Norm("admin"));
+        if (admin != null && admin.UserType != UserType.PlatformAdmin)
+        {
+            admin.UserType = UserType.PlatformAdmin;
+            uow.Repository<User>().Update(admin);
+            await uow.SaveChangesAsync();
+        }
+
+        // 映射 admin → 默认租户
+        if (admin != null)
+        {
+            var exists = await context.Set<PlatformUserTenant>()
+                .AnyAsync(p => p.PlatformUserId == admin.Id && p.TenantId == defaultTenant.Id);
+            if (!exists)
+                context.Set<PlatformUserTenant>().Add(
+                    new PlatformUserTenant { PlatformUserId = admin.Id, TenantId = defaultTenant.Id });
+        }
+
+        // 更新 testuser 为租户用户（归属默认租户）
+        var testuser = await uow.Repository<User>()
+            .FirstOrDefaultAsync(u => u.NormalizedUsername == Norm("testuser"));
+        if (testuser != null)
+        {
+            if (testuser.TenantId != defaultTenant.Id || testuser.UserType != UserType.TenantUser)
+            {
+                testuser.TenantId = defaultTenant.Id;
+                testuser.UserType = UserType.TenantUser;
+                uow.Repository<User>().Update(testuser);
+            }
+        }
+
+        await uow.SaveChangesAsync();
+    }
+
+    /// <summary>初始化菜单种子数据（幂等）</summary>
+    private static async Task SeedMenusAsync(IUnitOfWork uow, Guid createdBy)
+    {
+        var existing = (await uow.Repository<Menu>().GetAllAsync());
+        if (existing.Count > 0) return;
+
+        var sysMenu = await AddMenu(uow, createdBy, new Menu { Name = "系统管理", Type = 1, Icon = "settings", SortOrder = 100 });
+        var userMenu = await AddMenu(uow, createdBy, new Menu { Name = "用户管理", Type = 1, Icon = "user", SortOrder = 1 });
+        var roleMenu = await AddMenu(uow, createdBy, new Menu { Name = "角色管理", Type = 1, Icon = "role", SortOrder = 2 });
+        var permMenu = await AddMenu(uow, createdBy, new Menu { Name = "权限管理", Type = 1, Icon = "lock", SortOrder = 3 });
+        var orgMenu = await AddMenu(uow, createdBy, new Menu { Name = "组织架构", Type = 1, Icon = "org", SortOrder = 4 });
+        var confMenu = await AddMenu(uow, createdBy, new Menu { Name = "系统配置", Type = 1, Icon = "config", SortOrder = 200 });
+        var tenantMenu = await AddMenu(uow, createdBy, new Menu { Name = "多租户", Type = 1, Icon = "tenant", SortOrder = 300 });
+
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "系统参数", Type = 2, Path = "/system-params", PermissionCode = "system-params.list", SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "数据字典", Type = 2, Path = "/data-dict", PermissionCode = "datadict.list", SortOrder = 2, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "操作日志", Type = 2, Path = "/operation-logs", PermissionCode = "operation-logs.list", SortOrder = 3, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "定时任务", Type = 2, Path = "/jobs", PermissionCode = "jobs.list", SortOrder = 4, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "文件管理", Type = 2, Path = "/files", PermissionCode = "files.upload", SortOrder = 5, KeepAlive = true });
+
+        await AddMenu(uow, createdBy, new Menu { ParentId = userMenu.Id, Name = "用户列表", Type = 2, Path = "/users", PermissionCode = "users.list", SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = userMenu.Id, Name = "新建用户", Type = 3, PermissionCode = "users.create", SortOrder = 2 });
+        await AddMenu(uow, createdBy, new Menu { ParentId = roleMenu.Id, Name = "角色列表", Type = 2, Path = "/roles", PermissionCode = "roles.list", SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = permMenu.Id, Name = "权限列表", Type = 2, Path = "/permissions", PermissionCode = "perms.list", SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = orgMenu.Id, Name = "部门列表", Type = 2, Path = "/organization-units", PermissionCode = "org-units.list", SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "菜单管理", Type = 2, Path = "/menus", PermissionCode = "menus.list", SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = tenantMenu.Id, Name = "租户列表", Type = 2, Path = "/tenants", PermissionCode = "tenants.list", SortOrder = 1, KeepAlive = true });
+
+        await uow.SaveChangesAsync();
+    }
+
+    private static async Task<Menu> AddMenu(IUnitOfWork uow, Guid createdBy, Menu menu)
+    {
+        menu.CreatedBy = createdBy;
+        return await uow.Repository<Menu>().AddAsync(menu);
+    }
 }

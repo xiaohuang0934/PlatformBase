@@ -1,5 +1,6 @@
 using Hangfire;
 using PlatformBase.Application.Services;
+using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Host.Jobs;
 
@@ -29,7 +30,7 @@ public class BackgroundJobService : IBackgroundJobService
     {
         var definition = JobRegistry.Find(jobId);
         if (definition == null)
-            throw new InvalidOperationException($"未找到任务定义: {jobId}");
+            throw new BusinessException($"未找到任务定义: {jobId}", ErrorCode.DataNotFound);
 
         BackgroundJob.Enqueue(() => ExecuteJobAsync(definition.JobType, CancellationToken.None));
     }
@@ -38,7 +39,7 @@ public class BackgroundJobService : IBackgroundJobService
     {
         var definition = JobRegistry.Find(jobId);
         if (definition == null)
-            throw new InvalidOperationException($"未找到任务定义: {jobId}");
+            throw new BusinessException($"未找到任务定义: {jobId}", ErrorCode.DataNotFound);
 
         _recurringJobManager.AddOrUpdate(
             jobId,
@@ -55,7 +56,7 @@ public class BackgroundJobService : IBackgroundJobService
     {
         var definition = JobRegistry.Find(jobId);
         if (definition == null)
-            throw new InvalidOperationException($"未找到任务定义: {jobId}");
+            throw new BusinessException($"未找到任务定义: {jobId}", ErrorCode.DataNotFound);
 
         _recurringJobManager.AddOrUpdate(
             jobId,
@@ -67,7 +68,7 @@ public class BackgroundJobService : IBackgroundJobService
     {
         var definition = JobRegistry.Find(jobId);
         if (definition == null)
-            throw new InvalidOperationException($"未找到任务定义: {jobId}");
+            throw new BusinessException($"未找到任务定义: {jobId}", ErrorCode.DataNotFound);
 
         _recurringJobManager.Trigger(jobId);
     }

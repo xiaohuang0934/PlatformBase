@@ -1,18 +1,27 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Globalization;
+using Asp.Versioning;
+using Hangfire;
+using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.IdentityModel.Tokens;
-using Hangfire;
 using PlatformBase.Application.Services;
 using PlatformBase.Core;
+using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Models;
 using PlatformBase.Core.Services;
 using PlatformBase.Host.Authorization;
 using PlatformBase.Host.Extensions;
+using PlatformBase.Host.Filters;
 using PlatformBase.Host.IdentityServer;
 using PlatformBase.Host.Middleware;
 using PlatformBase.Host.Services;
+using PlatformBase.Host.NotificationProviders;
+using PlatformBase.Host.StorageProviders;
 using PlatformBase.Infrastructure.Extensions;
 using Serilog;
 
@@ -38,14 +47,29 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 var enableSensitiveLogging = builder.Configuration.GetValue<bool>("Database:EnableSensitiveDataLogging");
 builder.Services.AddDatabase(dbProvider, connectionString, enableSensitiveLogging);
 
-// ═══════════════════ Controllers + FluentValidation ═══════════════════
-builder.Services.AddControllers();
+// ═══════════════════ Controllers + 全局过滤器 ═══════════════════
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<PlatformBase.Host.Filters.OperationLogFilter>();
+    options.Filters.Add<PlatformBase.Host.Filters.RateLimitFilter>();
+    options.Filters.Add<PlatformBase.Host.Filters.DataScopeFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 
 // ═══════════════════ 业务服务注册 ═══════════════════
 // 根据命名约定自动扫描：Application 层 I*Service → Host 层 *Service，统一注册为 Scoped
 builder.Services.AddApplicationServices();
-builder.Services.AddScoped<PersistedGrantStore>(); // refresh_token 持久化存储（无接口，特殊注册）
+builder.Services.AddScoped<PersistedGrantStore>(); // IdentityServer4，无接口，特殊注册
+
+// ═══════════════════ 事件总线（Channel 实现，预留 RabbitMQ 切换）══════════════════
+builder.Services.AddEventBus(typeof(ChannelEventBus).Assembly);
+
+// ═══════════════════ 手动注册（非 I*Service 约定，接口在 Host/Core 层）══════════════════
+builder.Services.AddSingleton<IFileStorageProvider, LocalFileStorageProvider>();
+builder.Services.AddScoped<IExportService, ImportExportService>();
+builder.Services.AddScoped<IImportService, ImportExportService>();
+builder.Services.AddSingleton<ILockService, RedisLockService>();
+builder.Services.AddSingleton<IIdGenerator, GuidIdGenerator>();
 
 // ═══════════════════ 后台任务调度 (Hangfire) ═══════════════════
 builder.Services.AddHangfireInfrastructure(dbProvider, connectionString);
@@ -93,6 +117,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         NameClaimType = ClaimTypes.Name,
         RoleClaimType = ClaimTypes.Role
     };
+
+    // 统一认证失败的响应格式为 ApiResult
+    options.Events = new JwtBearerEvents
+    {
+        OnChallenge = async context =>
+        {
+            context.HandleResponse();
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = 200;
+            var result = ApiResult.Fail(ErrorCode.Unauthorized, "认证失败，请重新登录");
+            await context.Response.WriteAsync(
+                System.Text.Json.JsonSerializer.Serialize(result,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
+        },
+        OnForbidden = async context =>
+        {
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = 200;
+            var result = ApiResult.Fail(ErrorCode.Unauthorized, "认证失败，请重新登录");
+            await context.Response.WriteAsync(
+                System.Text.Json.JsonSerializer.Serialize(result,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
+        }
+    };
 });
 
 // ═══════════════════ 权限鉴权体系 ═══════════════════
@@ -102,18 +150,42 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
 // ═══════════════════ Redis 缓存 ═══════════════════
 builder.Services.AddRedis(builder.Configuration);
 
-// ═══════════════════ Swagger / OpenAPI 文档 + Bearer Token 安全 ═══════════════════
+// ═══════════════════ API 版本管理 ═══════════════════
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ApiVersionReader = ApiVersionReader.Combine(
+        new UrlSegmentApiVersionReader(),
+        new QueryStringApiVersionReader("api-version"));
+}).AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
+// ═══════════════════ 国际化（多语言）══��═══════════════
+builder.Services.AddLocalization();
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    options.DefaultRequestCulture = new RequestCulture("zh-CN");
+    options.SupportedCultures = [new CultureInfo("zh-CN"), new CultureInfo("en")];
+    options.SupportedUICultures = [new CultureInfo("zh-CN"), new CultureInfo("en")];
+    options.RequestCultureProviders = [new AcceptLanguageHeaderRequestCultureProvider()];
+});
+
+// ═══════════════════ Swagger / OpenAPI 文档 + Bearer Token 安全 + API 版本分组 ═══════════════════
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new()
     {
-        Title = "PlatformBase API",
+        Title = "PlatformBase API v1",
         Version = "v1",
         Description = "企业级 .NET 8 WebAPI 通用开发底座 — 认证授权 & 权限管理"
     });
 
-    // Bearer Token 安全（通过 POST /api/auth/login 获取后粘贴）
     options.AddJwtSecurity();
+    options.OperationFilter<SwaggerDefaultValues>();
 });
 
 // ═══════════════════ 跨域配置 (CORS) ═══════════════════
@@ -134,6 +206,9 @@ var app = builder.Build();
 
 // ① 全局异常处理 — 管道最前端，捕获所有后续中间件的异常
 app.UseMiddleware<GlobalExceptionMiddleware>();
+
+// ①½ 国际化请求本地化 — 解析 Accept-Language 头，设置 CultureInfo
+app.UseRequestLocalization();
 
 // ② 路由匹配 — 必须在 UseIdentityServer 之前
 app.UseRouting();

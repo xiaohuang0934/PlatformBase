@@ -100,3 +100,26 @@ public abstract class SoftDeleteEntity : AuditableEntity, ISoftDelete
     /// <summary>删除操作用户ID</summary>
     public Guid? DeletedBy { get; set; }
 }
+
+// ═══════════════════ 多租户基类体系 ═══════════════════
+
+/// <summary>
+/// 租户感知标记接口，实现此接口的实体自动受全局 TenantId 过滤器保护
+/// </summary>
+public interface ITenantAware
+{
+    /// <summary>所属租户 ID</summary>
+    Guid TenantId { get; set; }
+}
+
+/// <summary>可审计的租户实体基类</summary>
+public abstract class TenantAuditableEntity : AuditableEntity, ITenantAware
+{
+    public Guid TenantId { get; set; }
+}
+
+/// <summary>可软删除的租户实体基类</summary>
+public abstract class TenantSoftDeleteEntity : SoftDeleteEntity, ITenantAware
+{
+    public Guid TenantId { get; set; }
+}

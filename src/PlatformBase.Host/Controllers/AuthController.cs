@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlatformBase.Application.Dtos;
@@ -5,6 +6,7 @@ using PlatformBase.Application.Services;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Services;
+using PlatformBase.Host.Filters;
 
 namespace PlatformBase.Host.Controllers;
 
@@ -12,8 +14,9 @@ namespace PlatformBase.Host.Controllers;
 /// 认证授权 API 控制器，提供登录、Token 刷新、用户资料、密码修改、权限列表等端点
 /// 所有业务逻辑委托给 IAuthService / IUserService / IPermissionService
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/auth")]
+[Route("api/v{version:apiVersion}/auth")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -39,10 +42,12 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("login")]
     [AllowAnonymous]
+    [OperationLog("login", Resource = "Auth:Login", CaptureArgs = false)]
+    [RateLimit(5, 60)]
     public async Task<ApiResult<LoginResponse>> Login(
-        [FromBody] LoginRequest request, CancellationToken cancellationToken)
+        [FromBody] LoginRequest request, CancellationToken ct)
     {
-        var result = await _authService.LoginAsync(request, cancellationToken);
+        var result = await _authService.LoginAsync(request, ct);
         return ApiResult<LoginResponse>.Ok(result);
     }
 
@@ -53,9 +58,9 @@ public class AuthController : ControllerBase
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<ApiResult<LoginResponse>> Refresh(
-        [FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+        [FromBody] RefreshTokenRequest request, CancellationToken ct)
     {
-        var result = await _authService.RefreshTokenAsync(request.RefreshToken, cancellationToken);
+        var result = await _authService.RefreshTokenAsync(request.RefreshToken, ct);
         return ApiResult<LoginResponse>.Ok(result);
     }
 
@@ -64,16 +69,16 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpGet("profile")]
     [Authorize]
-    public async Task<ApiResult<UserProfileDto>> GetProfile(CancellationToken cancellationToken)
+    public async Task<ApiResult<UserProfileDto>> GetProfile(CancellationToken ct)
     {
         if (_currentUser.UserId == null)
             return ApiResult<UserProfileDto>.Fail(ErrorCode.Unauthorized, "未登录");
 
-        var user = await _userService.GetByIdAsync(_currentUser.UserId.Value, cancellationToken);
+        var user = await _userService.GetByIdAsync(_currentUser.UserId.Value, ct);
         if (user == null)
             return ApiResult<UserProfileDto>.Fail(ErrorCode.UserNotFound, "用户不存在");
 
-        var roles = await _userService.GetRolesAsync(user.Id, cancellationToken);
+        var roles = await _userService.GetRolesAsync(user.Id, ct);
 
         return ApiResult<UserProfileDto>.Ok(new UserProfileDto
         {
@@ -95,14 +100,15 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("change-password")]
     [Authorize]
+    [OperationLog("update", Resource = "Auth:ChangePassword", CaptureArgs = false)]
     public async Task<ApiResult> ChangePassword(
-        [FromBody] ChangePasswordDto dto, CancellationToken cancellationToken)
+        [FromBody] ChangePasswordDto dto, CancellationToken ct)
     {
         if (_currentUser.UserId == null)
             return ApiResult.Fail(ErrorCode.Unauthorized, "未登录");
 
         await _authService.ChangePasswordAsync(
-            _currentUser.UserId.Value, dto.CurrentPassword, dto.NewPassword, cancellationToken);
+            _currentUser.UserId.Value, dto.CurrentPassword, dto.NewPassword, ct);
         return ApiResult.Ok("密码修改成功");
     }
 
@@ -112,13 +118,13 @@ public class AuthController : ControllerBase
     [HttpGet("permissions")]
     [Authorize]
     public async Task<ApiResult<IReadOnlyList<string>>> GetPermissions(
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         if (_currentUser.UserId == null)
             return ApiResult<IReadOnlyList<string>>.Fail(ErrorCode.Unauthorized, "未登录");
 
         var codes = await _permissionService.GetUserPermissionCodesAsync(
-            _currentUser.UserId.Value, cancellationToken);
+            _currentUser.UserId.Value, ct);
 
         return ApiResult<IReadOnlyList<string>>.Ok(codes);
     }

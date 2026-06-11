@@ -1,5 +1,235 @@
 # 变更日志 / Changelog
 
+## v1.4 — 多租户可见性完善 + 代码优雅化 (2026-06-10)
+
+### 新增
+
+- **多租户可见性控制**
+  - `ICurrentUserService.AccessibleTenantIds` — 控制读取可见范围
+  - 平台管理员 → 查询 `PlatformUserTenants` 表获取已分配租户列表
+  - 租户用户 → 仅可见自己租户数据
+  - `CurrentUserService.LoadAssignedTenants()` — 懒加载已分配租户
+
+- **AppDbContext 自动填充 TenantId**
+  - `ApplyAuditFields` 增加 `ITenantAware` 实体自动填充 `TenantId`
+  - 全局过滤器改为 `AccessibleTenantIds.Contains(e.TenantId)` 模式
+
+- **Service 层补齐**
+  - `IOrganizationUnitService` + `OrganizationUnitService` — 组织架构 Service 层
+  - `ITenantService` + `TenantService` — 租户管理 Service 层
+  - 平台账号-租户分配端点：`POST/DELETE /api/v1/tenants/{tid}/platform-users/{uid}`
+
+- **通知模板 CRUD**
+  - `GET/POST/PUT/DELETE /api/v1/notifications/templates`
+  - `notifications.manage` 权限
+
+- **操作日志详情 + 清理**
+  - `GET /api/v1/operation-logs/{id}` — 单条详情
+  - `DELETE /api/v1/operation-logs/cleanup?daysAgo=90` — 批量清理
+
+- **ExpressionExtensions.Append/AppendIf** — 链式表达式追加，5 个 Service GetPagedAsync 全面简化
+
+### 变更
+
+- `ExpressionExtensions` — +`Append` / `AppendIf` 两个方法
+- 5 个 Service 的 `GetPagedAsync` 重写为链式 `AppendIf`，消除 ~105 行冗余代码
+- 删除 3 个 `CombineAnd` 私有方法（已由 `AndAlso` + `Append` 替代）
+- `UserController.Create` — 自动填充 `TenantId` + `UserType`
+- `RoleService.CreateAsync` — 自动填充 `TenantId`
+- `RoleService.GetPagedAsync` — 增加租户过滤
+- `UserService.GetPagedAsync` — 增加租户过滤（注入 `ICurrentUserService`）
+- `Program.cs` — 合并分散的手动注册为统一注释块，移除重复 using
+- 移除未使用的 `FluentValidation.AspNetCore` NuGet 包
+
+### 修复
+
+- 重复 `using PlatformBase.Core.Events;` × 2 → 移除
+- `Normalize` 方法统一使用 `StringExtensions.Normalize`
+- 6 个 `ITenantAware` 实体创建时 `TenantId` 从 `Guid.Empty` → 自动填充
+- 全局过滤器：TenantId=null 不再等于"看全部" → 改为 `AccessibleTenantIds` 精确控制
+
+---
+
+## v1.3 — 多租户 + 事件总线 + 文件管理 + 消息通知 + 导入导出 + 部门管理 (2026-06-10)
+
+### 新增 / Added
+
+- **多租户基础设施**
+  - `ITenantAware` 接口 + `TenantAuditableEntity` / `TenantSoftDeleteEntity` 基类
+  - `Tenants` / `PlatformUserTenants` 表 — 租户 + 平台账号映射
+  - `TenantParams` 表 — 租户参数覆盖（双表方案，Fallback 到 SystemParams）
+  - `TenantDataDictTypes` / `TenantDataDictItems` — 租户字典覆盖
+  - 全局查询过滤器 `ITenantAware` — `AppDbContext` 自动附加 `WHERE TenantId = {current}`
+  - JWT Claims 扩展 `tenant_id` + `user_type`
+  - `ICurrentUserService` 扩展 +`TenantId` + `IsSuperAdmin` + X-Tenant-Id 头切换
+  - `GET/POST/PUT/DELETE /api/v1/tenants` — 租户管理 CRUD
+  - `GET/POST/PUT /api/v1/tenant-params` — 租户参数 CRUD
+  - 种子数据：默认租户 ×1、platform_admin ×1、tenant_user ×1
+
+- **事件总线**
+  - `IEventPublisher` / `IEventHandler<T>` 接口（Core 层抽象）
+  - `ChannelEventBus` — System.Threading.Channels 内存实现（预留 RabbitMQ 切换）
+  - `EventBusExtensions` — 自动扫描注册所有 Handler
+
+- **文件管理**
+  - `FileAttachments` 表（Bucket/Key/OriginalName/Size/MimeType/BizType/BizId）
+  - `IFileStorageProvider` 抽象 — `LocalFileStorageProvider` 本地实现
+  - `POST /api/v1/files/upload` — multipart/form-data 上传
+  - `GET /api/v1/files/{id}/download` — 流式下载
+  - `GET /api/v1/files?bizType=&bizId=` — 业务检索
+  - `DELETE /api/v1/files/{id}` — 软删除
+
+- **消息通知**
+  - `NotificationTemplates` / `Notifications` 表
+  - `INotificationService` — 模板发送 + 直接发送 + 分页查询 + 已读标记
+  - `IChannelProvider` 抽象 — `InAppChannelProvider` 站内信实现（预留邮件/短信）
+  - `GET /api/v1/notifications?unreadOnly=` — 通知列表
+  - `PATCH /api/v1/notifications/{id}/read` — 标记已读
+  - `PATCH /api/v1/notifications/read-all` — 全部已读
+  - 种子模板：welcome / password_changed / account_locked
+
+- **数据导入导出**
+  - `IExportService` / `IImportService` — Excel/CSV 通用接口（ClosedXML + CsvHelper）
+  - `GET /api/v1/import-export/users` — 导出用户列表为 .xlsx
+  - `POST /api/v1/import-export/users` — 导入用户（Excel/CSV 自动识别）
+
+- **部门管理**
+  - `OrganizationUnits` 表（树形 ParentId）
+  - `GET /api/v1/organization-units` — 树形列表
+  - `POST/PUT/DELETE` — CRUD 管理
+
+- **分布式基础能力**
+  - `ILockService` + `RedisLockService` — 分布式锁
+  - `IIdGenerator` + `GuidIdGenerator` — 分布式 ID（预留 Snowflake）
+
+- **API 版本 + 限流 + 国际化**
+  - `Asp.Versioning.Mvc` — 所有 Controller 路由加 `v{version:apiVersion}` 段
+  - `[RateLimit(limit, seconds)]` ActionFilter — Redis 滑动窗口
+  - `IStringLocalizer<SharedResource>` + zh-CN/en 资源文件 — AuthService 错误消息多语言
+
+### 新增表 / New Tables
+
+| 表 | 说明 |
+|----|------|
+| `Tenants` | 租户 |
+| `PlatformUserTenants` | 平台账号-租户映射 |
+| `TenantParams` | 租户覆盖参数 |
+| `TenantDataDictTypes` | 租户覆盖字典类型 |
+| `TenantDataDictItems` | 租户覆盖字典项 |
+| `FileAttachments` | 文件附件 |
+| `NotificationTemplates` | 通知模板 |
+| `Notifications` | 通知记录 |
+| `OrganizationUnits` | 组织架构 |
+
+### 新增权限
+
+| 编码 | 说明 |
+|------|------|
+| `tenants.*` | 租户管理（4 个） |
+| `tenant-params.*` | 租户参数管理（4 个） |
+| `files.upload` | 文件管理（1 个） |
+| `org-units.*` | 组织架构管理（4 个） |
+
+### 变更 / Changed
+
+- 现有 4 张表改基类为 `TenantXxxEntity`：OperationLog / FileAttachment / Notification / NotificationTemplate
+- `AppDbContext` — 新增全局 TenantId 过滤器
+- `ICurrentUserService` — 新增 `TenantId` + `IsSuperAdmin`
+- `AuthService` / `ResourceOwnerPasswordValidator` — JWT Claims 加入 `tenant_id` + `user_type`
+- 8 个 Controller 路由 + `[ApiVersion]` + `v{version}` 段
+- README 路线图全面更新
+
+---
+
+## v1.2 — 用户/角色/权限全生命周期 + 操作日志 (2026-06-10)
+
+### 新增 / Added
+
+- **用户管理完整 CRUD**
+  - `UserController` — `GET/POST/PUT/DELETE/PATCH /api/users`
+  - 分页列表 / 详情（含角色）/ 创建（含角色分配）/ 更新 / 软删除
+  - `PATCH /api/users/{id}/toggle` — 启用/禁用
+  - `POST /api/users/{id}/reset-password` — 管理员重置密码
+  - `PUT /api/users/{id}/roles` — 批量分配角色（全量替换 + 事务保护）
+  - `GetPagedAsync` / `SetActiveAsync` / `SoftDeleteAsync` / `ResetPasswordAsync` / `ClearRolesAsync`
+
+- **角色管理完整 CRUD**
+  - `RoleController` — `GET/POST/PUT/DELETE /api/roles`
+  - 分页列表 / 详情 / 创建 / 更新 / 删除（含用户关联保护）
+  - `GET /api/roles/{id}/permissions` — 查看角色权限
+  - `PUT /api/roles/{id}/permissions` — 批量分配权限（全量替换 + 事务保护）
+
+- **权限管理完整 CRUD**
+  - `PermissionController` — `GET/POST/PUT/DELETE /api/permissions`
+  - 分页列表 / 详情 / 创建 / 更新 / 删除（级联清理关联）
+  - 权限拆分：`perms.create` / `perms.edit` / `perms.delete`（不再共用 `perms.list`）
+
+- **操作日志模块**
+  - `OperationLogs` 表 — 记录关键操作（登录/创建/更新/删除），异步写入不阻塞请求
+  - `[OperationLog("create", Resource = "User")]` — 标记特性，一行即可记录
+  - `OperationLogFilter` — 全局 `IAsyncActionFilter`，通过 Hangfire `BackgroundJob.Enqueue` 异步入队
+  - `GET /api/operation-logs` — 分页检索，支持按用户/操作类型/时间范围筛选
+
+- **DTO 输入校验**
+  - 全部 7 个 Create DTO + `ChangePasswordDto` 添加 `[Required]` / `[MinLength]` 等 DataAnnotations
+  - `[ApiController]` 自动触发 ModelState 校验，返回 400 + 中文错误提示
+
+- **统一响应约定**
+  - `JwtBearerEvents.OnChallenge` / `OnForbidden` — 统一返回 `ApiResult(code=401)`
+  - `StampValidationMiddleware` — 统一返回 `ApiResult(code=401, message="Token已失效")`
+  - `GlobalExceptionMiddleware` — `DbUpdateConcurrencyException` 返回 409，HTTP 统一 200
+  - `PermissionAuthorizationHandler` — try-catch 防护，异常时 `context.Fail()`
+
+- **缓存安全加固**
+  - 登录频控 — Redis 计数器（5 分钟窗口 / 10 次上限），Redis 不可用时降级到 DB 锁定
+  - 权限缓存失效 — 角色权限变更 / 用户角色变更 / 权限点变更 → 立即失效 `user:perms:{userId}`
+  - 密码变更撤销 Token — 改密码/重置密码后主动删除 `stamp:{userId}` + 撤销 RefreshToken
+  - 权限缓存 TTL 从 30min 缩短为 5min
+
+- **事务保护**
+  - 用户创建（创建+角色分配）、用户角色分配（清除+新增）、角色权限分配（移除+新增）
+  - 密码修改（改密码+撤销Token）、密码重置（改密码+撤销Token）
+  - 全部 5 处关键操作包裹 `IUnitOfWork.BeginTransactionAsync/CommitTransactionAsync`
+
+- **消除重复代码**
+  - `Core/Extensions/StringExtensions.Normalize()` — 统一字符串规范化
+  - `Core/Extensions/ExpressionExtensions.AndAlso<T>()` — 统一 Lambda 表达式合并
+
+- **错误码清理**
+  - 移除未使用的 `PermissionDenied(1010)`（与 `Forbidden(403)` 语义重复）
+  - `GlobalExceptionMiddleware` 对 `DbUpdateConcurrencyException` 返回 409
+
+### 新增表 / New Tables
+
+| 表 | 说明 |
+|----|------|
+| `OperationLogs` | 操作日志（异步写入） |
+
+### 新增 API 端点
+
+| 前缀 | 数量 | 关键端点 |
+|------|:---:|------|
+| `/api/users` | 9 | CRUD + toggle + roles + reset-password |
+| `/api/roles` | 7 | CRUD + permissions |
+| `/api/permissions` | 5 | CRUD（perms.create/edit/delete 独立权限） |
+| `/api/operation-logs` | 1 | GET 分页检索 |
+
+### 新增权限
+
+| 编码 | 说明 |
+|------|------|
+| `perms.create/edit/delete` | 权限管理 CRUD（3 个） |
+| `operation-logs.list` | 操作日志查询（1 个） |
+
+### 变更 / Changed
+
+- `ErrorCode.cs` — 移除未使用的 `PermissionDenied(1010)`，规范注释
+- `Program.cs` — JwtBearer OnChallenge/OnForbidden 返回统一 ApiResult
+- `ResetPasswordRequest` — 从 UserController.cs 移至 DTOs 目录
+- `OperationLogFilter` — 全局注册，无需手动在每个 Controller 中添加
+
+---
+
 ## v1.1 — 基础业务模块 (2026-06-09)
 
 ### 新增 / Added

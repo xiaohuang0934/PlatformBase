@@ -7,6 +7,8 @@ using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
 using PlatformBase.Infrastructure.Data;
+using PlatformBase.Core.Services;
+using PlatformBase.Core.Extensions;
 
 namespace PlatformBase.Host.Services;
 
@@ -20,14 +22,24 @@ public class UserService : IUserService
 {
     private readonly IUnitOfWork _uow;
     private readonly AppDbContext _context;
+    private readonly StackExchange.Redis.IDatabase? _redis;
+    private readonly IdentityServer.PersistedGrantStore _grantStore;
+    private readonly ICurrentUserService _currentUser;
+    private readonly ISystemParamService _sysParam;
 
-    private const int MaxFailedAttempts = 5;
-    private const int LockoutMinutes = 5;
+    private const int DefaultMaxFailedAttempts = 5;
+    private const int DefaultLockoutMinutes = 5;
 
-    public UserService(IUnitOfWork uow, AppDbContext context)
+    public UserService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider,
+        IdentityServer.PersistedGrantStore grantStore, ICurrentUserService currentUser,
+        ISystemParamService sysParam)
     {
         _uow = uow;
         _context = context;
+        _redis = serviceProvider.GetService<StackExchange.Redis.IConnectionMultiplexer>()?.GetDatabase();
+        _grantStore = grantStore;
+        _currentUser = currentUser;
+        _sysParam = sysParam;
     }
 
     /// <inheritdoc />
@@ -39,7 +51,7 @@ public class UserService : IUserService
     /// <inheritdoc />
     public async Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default)
     {
-        var normalized = Normalize(username);
+        var normalized = StringExtensions.Normalize(username);
         return await _uow.Repository<User>()
             .FirstOrDefaultAsync(u => u.NormalizedUsername == normalized, cancellationToken);
     }
@@ -48,13 +60,13 @@ public class UserService : IUserService
     public async Task<User> CreateAsync(User user, CancellationToken cancellationToken = default)
     {
         if (await _uow.Repository<User>().AnyAsync(
-                u => u.NormalizedUsername == Normalize(user.Username), cancellationToken))
+                u => u.NormalizedUsername == StringExtensions.Normalize(user.Username), cancellationToken))
         {
             throw new BusinessException($"用户名 '{user.Username}' 已存在", ErrorCode.DuplicateRecord);
         }
 
-        user.NormalizedUsername = Normalize(user.Username);
-        user.NormalizedEmail = user.Email != null ? Normalize(user.Email) : null;
+        user.NormalizedUsername = StringExtensions.Normalize(user.Username);
+        user.NormalizedEmail = user.Email != null ? StringExtensions.Normalize(user.Email) : null;
 
         var created = await _uow.Repository<User>().AddAsync(user, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
@@ -64,8 +76,8 @@ public class UserService : IUserService
     /// <inheritdoc />
     public async Task UpdateAsync(User user, CancellationToken cancellationToken = default)
     {
-        user.NormalizedUsername = Normalize(user.Username);
-        user.NormalizedEmail = user.Email != null ? Normalize(user.Email) : null;
+        user.NormalizedUsername = StringExtensions.Normalize(user.Username);
+        user.NormalizedEmail = user.Email != null ? StringExtensions.Normalize(user.Email) : null;
 
         _uow.Repository<User>().Update(user);
         await _uow.SaveChangesAsync(cancellationToken);
@@ -95,8 +107,15 @@ public class UserService : IUserService
 
         if (exists) return;
 
+        // 校验角色是否存在
+        var roleExists = await _uow.Repository<Role>()
+            .AnyAsync(r => r.Id == roleId, cancellationToken);
+        if (!roleExists)
+            throw new BusinessException("角色不存在", ErrorCode.DataNotFound);
+
         _context.Set<UserRole>().Add(new UserRole { UserId = userId, RoleId = roleId });
         await _context.SaveChangesAsync(cancellationToken);
+        await InvalidateUserPermsCacheAsync(userId);
     }
 
     /// <inheritdoc />
@@ -109,6 +128,7 @@ public class UserService : IUserService
         {
             _context.Set<UserRole>().Remove(userRole);
             await _context.SaveChangesAsync(cancellationToken);
+            await InvalidateUserPermsCacheAsync(userId);
         }
     }
 
@@ -121,6 +141,7 @@ public class UserService : IUserService
 
         _context.Set<UserRole>().RemoveRange(userRoles);
         await _context.SaveChangesAsync(cancellationToken);
+        await InvalidateUserPermsCacheAsync(userId);
     }
 
     /// <inheritdoc />
@@ -174,8 +195,12 @@ public class UserService : IUserService
 
         user.AccessFailedCount++;
 
-        if (user.AccessFailedCount >= MaxFailedAttempts)
-            user.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(LockoutMinutes);
+        var maxAttempts = await _sysParam.GetValueAsync("max_login_attempts", DefaultMaxFailedAttempts, cancellationToken);
+        if (user.AccessFailedCount >= maxAttempts)
+        {
+            var lockMins = await _sysParam.GetValueAsync("lockout_minutes", DefaultLockoutMinutes, cancellationToken);
+            user.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(lockMins);
+        }
 
         _uow.Repository<User>().Update(user);
         await _uow.SaveChangesAsync(cancellationToken);
@@ -188,32 +213,26 @@ public class UserService : IUserService
     /// <inheritdoc />
     public async Task<PagedResult<UserDto>> GetPagedAsync(UserQuery query, CancellationToken ct = default)
     {
-        Expression<Func<User, bool>>? filter = null;
+        var accessibleIds = _currentUser.AccessibleTenantIds;
+        var kw = query.Keyword?.Trim().ToUpperInvariant();
 
-        if (query.IsActive.HasValue)
+        var filter = ((Expression<Func<User, bool>>?)null)
+            .AppendIf(accessibleIds.Count > 0 && _currentUser.IsSuperAdmin,
+                u => u.TenantId == null || accessibleIds.Contains(u.TenantId.Value))
+            .AppendIf(accessibleIds.Count > 0 && !_currentUser.IsSuperAdmin,
+                u => u.TenantId != null && accessibleIds.Contains(u.TenantId.Value))
+            .AppendIf(accessibleIds.Count == 0 && !_currentUser.IsSuperAdmin,
+                u => false)
+            .AppendIf(query.IsActive.HasValue,
+                u => u.IsActive == query.IsActive.Value)
+            .AppendIf(!string.IsNullOrWhiteSpace(kw),
+                u => u.NormalizedUsername.Contains(kw!) || (u.NormalizedEmail != null && u.NormalizedEmail.Contains(kw!)));
+
+        var result = await _uow.Repository<User>().GetPagedAsync(new PagedRequest
         {
-            var active = query.IsActive.Value;
-            filter = u => u.IsActive == active;
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.Keyword))
-        {
-            var kw = query.Keyword.Trim().ToUpperInvariant();
-            Expression<Func<User, bool>> kwFilter = u =>
-                u.NormalizedUsername.Contains(kw) || (u.NormalizedEmail != null && u.NormalizedEmail.Contains(kw));
-
-            filter = filter == null ? kwFilter : CombineAnd(filter, kwFilter);
-        }
-
-        var request = new PagedRequest
-        {
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize,
-            SortField = query.SortField ?? nameof(User.Username),
-            IsAscending = query.IsAscending
-        };
-
-        var result = await _uow.Repository<User>().GetPagedAsync(request, filter, ct);
+            PageIndex = query.PageIndex, PageSize = query.PageSize,
+            SortField = query.SortField ?? nameof(User.Username), IsAscending = query.IsAscending
+        }, filter, ct);
 
         var userRoles = await _context.Set<UserRole>()
             .Where(ur => result.Items.Select(u => u.Id).Contains(ur.UserId))
@@ -266,6 +285,15 @@ public class UserService : IUserService
         var user = await GetByIdAsync(id, ct);
         if (user == null) return;
 
+        // 清理关联记录
+        var userRoles = await _context.Set<UserRole>()
+            .Where(ur => ur.UserId == id).ToListAsync(ct);
+        _context.Set<UserRole>().RemoveRange(userRoles);
+
+        var userPerms = await _context.Set<UserPermission>()
+            .Where(up => up.UserId == id).ToListAsync(ct);
+        _context.Set<UserPermission>().RemoveRange(userPerms);
+
         _uow.Repository<User>().SoftDelete(user);
         await _uow.SaveChangesAsync(ct);
     }
@@ -280,19 +308,37 @@ public class UserService : IUserService
         var newHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         var newStamp = Guid.NewGuid().ToString();
 
-        user.PasswordHash = newHash;
-        user.SecurityStamp = newStamp;
-        _uow.Repository<User>().Update(user);
-        await _uow.SaveChangesAsync(ct);
+        await _uow.BeginTransactionAsync(ct);
+        try
+        {
+            user.PasswordHash = newHash;
+            user.SecurityStamp = newStamp;
+            _uow.Repository<User>().Update(user);
+            await _uow.SaveChangesAsync(ct);
+
+            await _grantStore.RevokeUserTokensAsync(id.ToString());
+            await _uow.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _uow.RollbackTransactionAsync(ct);
+            throw;
+        }
+
+        await InvalidateStampCacheAsync(id);
     }
 
-    private static Expression<Func<T, bool>> CombineAnd<T>(
-        Expression<Func<T, bool>> left, Expression<Func<T, bool>> right)
+    private async Task InvalidateUserPermsCacheAsync(Guid userId)
     {
-        var param = Expression.Parameter(typeof(T));
-        var body = Expression.AndAlso(
-            Expression.Invoke(left, param),
-            Expression.Invoke(right, param));
-        return Expression.Lambda<Func<T, bool>>(body, param);
+        if (_redis == null) return;
+        try { await _redis.KeyDeleteAsync($"user:perms:{userId}"); }
+        catch { /* Redis 不可用，降级跳过 */ }
+    }
+
+    private async Task InvalidateStampCacheAsync(Guid userId)
+    {
+        if (_redis == null) return;
+        try { await _redis.KeyDeleteAsync($"stamp:{userId}"); }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 }

@@ -19,6 +19,15 @@ public class PagedRequest
 
     /// <summary>关键词搜索</summary>
     public string? Keyword { get; set; }
+
+    /// <summary>从查询对象构造分页请求（链式写法用）</summary>
+    public static PagedRequest From(PagedRequest query, string? sortField = null) => new()
+    {
+        PageIndex = query.PageIndex,
+        PageSize = query.PageSize,
+        SortField = sortField ?? query.SortField,
+        IsAscending = query.IsAscending
+    };
 }
 
 /// <summary>

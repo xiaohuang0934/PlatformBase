@@ -8,7 +8,7 @@ namespace PlatformBase.Core.Entities;
 ///   <item>软删除支持（<see cref="SoftDeleteEntity"/>）</item>
 /// </list>
 /// </summary>
-public class User : SoftDeleteEntity
+public partial class User : SoftDeleteEntity
 {
     /// <summary>登录用户名，全局唯一</summary>
     public string Username { get; set; } = string.Empty;

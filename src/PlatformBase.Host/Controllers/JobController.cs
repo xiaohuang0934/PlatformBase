@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Hangfire;
 using PlatformBase.Application.Services;
@@ -11,8 +12,9 @@ namespace PlatformBase.Host.Controllers;
 /// 后台任务管理 API 控制器
 /// 提供任务列表查看、启停控制、动态 Cron 修改、手动触发等端点
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/jobs")]
+[Route("api/v{version:apiVersion}/jobs")]
 public class JobController : ControllerBase
 {
     private readonly IBackgroundJobService _bgService;

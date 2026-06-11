@@ -206,6 +206,40 @@ public class NotificationService
 ⑥ 所有 API 端点现在自动携带 Authorization: Bearer {token}
 ```
 
+## 操作日志 / Operation Logging
+
+### 添加操作日志
+
+在需要记录操作日志的 Controller Action 上添加 `[OperationLog]` 特性即可：
+
+```csharp
+[HttpPost]
+[Permission("users.create")]
+[OperationLog("create", Resource = "User")]
+public async Task<ApiResult<UserDto>> Create(CreateUserDto dto, CancellationToken ct)
+{
+    // 操作日志自动记录：操作人、操作类型、请求参数、IP、结果
+}
+```
+
+### 特性参数
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `Action` | 操作类型（login / create / update / delete / export） | 必填 |
+| `Resource` | 资源描述，为空时自动取 `controller.action` | null |
+| `CaptureArgs` | 是否捕获请求参数快照 | true |
+
+### 查询操作日志
+
+```
+GET /api/operation-logs?userId={guid}&action=create&username=admin&startTime=2026-01-01&endTime=2026-12-31&pageIndex=1&pageSize=20
+```
+
+> 日志通过 Hangfire 异步写入，不阻塞 HTTP 请求。写入失败不影响业务操作。
+
+---
+
 ## 常见问题 / FAQ
 
 ### Q: 新增实体后需要手动迁移数据库吗？

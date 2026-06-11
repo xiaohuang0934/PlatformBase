@@ -7,6 +7,7 @@ using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
+using PlatformBase.Core.Extensions;
 using StackExchange.Redis;
 
 namespace PlatformBase.Host.Services;
@@ -106,40 +107,19 @@ public class SystemParamService : ISystemParamService
     public async Task<PagedResult<SystemParamDto>> GetPagedAsync(
         SystemParamQuery query, CancellationToken cancellationToken = default)
     {
-        Expression<Func<SystemParam, bool>>? filter = null;
+        var kw = query.Keyword?.Trim().ToUpperInvariant();
+        var cat = query.Category?.Trim();
 
-        if (!string.IsNullOrWhiteSpace(query.Category))
+        var filter = ((Expression<Func<SystemParam, bool>>?)null)
+            .AppendIf(!string.IsNullOrWhiteSpace(cat), p => p.Category == cat)
+            .AppendIf(!string.IsNullOrWhiteSpace(kw), p => p.Code.ToUpper().Contains(kw!) || p.Name.ToUpper().Contains(kw!))
+            .AppendIf(query.IsEnabled.HasValue, p => p.IsEnabled == query.IsEnabled.Value);
+
+        var result = await _uow.Repository<SystemParam>().GetPagedAsync(new PagedRequest
         {
-            var cat = query.Category.Trim();
-            filter = p => p.Category == cat;
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.Keyword))
-        {
-            var kw = query.Keyword.Trim().ToUpperInvariant();
-            Expression<Func<SystemParam, bool>> kwFilter = p =>
-                p.Code.ToUpper().Contains(kw) || p.Name.ToUpper().Contains(kw);
-            filter = filter == null ? kwFilter : CombineAnd(filter, kwFilter);
-        }
-
-        if (query.IsEnabled.HasValue)
-        {
-            var enabled = query.IsEnabled.Value;
-            Expression<Func<SystemParam, bool>> enabledFilter = p => p.IsEnabled == enabled;
-            filter = filter == null ? enabledFilter : CombineAnd(filter, enabledFilter);
-        }
-
-        // Note: PagedRequest.Keyword is already handled via query.Keyword
-        // PagedRequest.SortField is passed through, but we always sort by SortOrder then Code
-        var request = new PagedRequest
-        {
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize,
-            SortField = query.SortField ?? nameof(SystemParam.SortOrder),
-            IsAscending = query.IsAscending
-        };
-
-        var result = await _uow.Repository<SystemParam>().GetPagedAsync(request, filter, cancellationToken);
+            PageIndex = query.PageIndex, PageSize = query.PageSize,
+            SortField = query.SortField ?? nameof(SystemParam.SortOrder), IsAscending = query.IsAscending
+        }, filter, cancellationToken);
 
         return new PagedResult<SystemParamDto>(
             result.TotalCount, result.PageIndex, result.PageSize,
@@ -176,6 +156,10 @@ public class SystemParamService : ISystemParamService
 
         var created = await _uow.Repository<SystemParam>().AddAsync(entity, cancellationToken);
         await _uow.SaveChangesAsync(cancellationToken);
+
+        if (created.Category != null)
+            await InvalidateCatCacheAsync(created.Category);
+
         return ToDto(created);
     }
 
@@ -228,14 +212,14 @@ public class SystemParamService : ISystemParamService
     {
         if (_redis == null) return;
         try { await _redis.KeyDeleteAsync($"{CacheKeyPrefix}{code}"); }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 
     private async Task InvalidateCatCacheAsync(string category)
     {
         if (_redis == null) return;
         try { await _redis.KeyDeleteAsync($"{CatCacheKeyPrefix}{category}"); }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 
     private async Task<string?> TryGetCacheAsync(string code)
@@ -259,7 +243,7 @@ public class SystemParamService : ISystemParamService
                 value ?? "__NULL__",
                 TimeSpan.FromMinutes(CacheExpirationMinutes));
         }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 
     private async Task<IReadOnlyDictionary<string, string>?> TryGetCatCacheAsync(string category)
@@ -271,7 +255,7 @@ public class SystemParamService : ISystemParamService
             if (value.HasValue && !value.IsNullOrEmpty)
                 return JsonSerializer.Deserialize<Dictionary<string, string>>(value!);
         }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
         return null;
     }
 
@@ -285,7 +269,7 @@ public class SystemParamService : ISystemParamService
                 JsonSerializer.Serialize(dict),
                 TimeSpan.FromMinutes(CacheExpirationMinutes));
         }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 
     /// <summary>校验功能开关的值必须为 true 或 false</summary>
@@ -312,14 +296,4 @@ public class SystemParamService : ISystemParamService
         CreatedAt = entity.CreatedAt,
         UpdatedAt = entity.UpdatedAt
     };
-
-    private static Expression<Func<T, bool>> CombineAnd<T>(
-        Expression<Func<T, bool>> left, Expression<Func<T, bool>> right)
-    {
-        var param = Expression.Parameter(typeof(T));
-        var body = Expression.AndAlso(
-            Expression.Invoke(left, param),
-            Expression.Invoke(right, param));
-        return Expression.Lambda<Func<T, bool>>(body, param);
-    }
 }

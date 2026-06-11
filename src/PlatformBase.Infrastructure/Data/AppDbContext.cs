@@ -62,6 +62,41 @@ public class AppDbContext : DbContext
     /// <summary>任务调度配置表</summary>
     public DbSet<JobSchedule> JobSchedules { get; set; } = null!;
 
+    /// <summary>操作日志表</summary>
+    public DbSet<OperationLog> OperationLogs { get; set; } = null!;
+
+    /// <summary>文件附件表</summary>
+    public DbSet<FileAttachment> FileAttachments { get; set; } = null!;
+
+    /// <summary>通知模板表</summary>
+    public DbSet<NotificationTemplate> NotificationTemplates { get; set; } = null!;
+
+    /// <summary>通知表</summary>
+    public DbSet<Notification> Notifications { get; set; } = null!;
+
+    // ═══════════════════ 多租户实体 ═══════════════════
+
+    /// <summary>租户表</summary>
+    public DbSet<Tenant> Tenants { get; set; } = null!;
+
+    /// <summary>平台账号-租户映射表</summary>
+    public DbSet<PlatformUserTenant> PlatformUserTenants { get; set; } = null!;
+
+    /// <summary>租户参数表</summary>
+    public DbSet<TenantParam> TenantParams { get; set; } = null!;
+
+    /// <summary>租户字典类型表</summary>
+    public DbSet<TenantDataDictType> TenantDataDictTypes { get; set; } = null!;
+
+    /// <summary>租户字典项表</summary>
+    public DbSet<TenantDataDictItem> TenantDataDictItems { get; set; } = null!;
+
+    /// <summary>组织架构表</summary>
+    public DbSet<OrganizationUnit> OrganizationUnits { get; set; } = null!;
+
+    /// <summary>菜单表</summary>
+    public DbSet<Menu> Menus { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // ───── 认证授权实体配置 ─────
@@ -120,6 +155,31 @@ public class AppDbContext : DbContext
             e.HasIndex(j => j.JobId).IsUnique();
         });
 
+        modelBuilder.Entity<OperationLog>(e =>
+        {
+            e.HasIndex(l => l.UserId);
+            e.HasIndex(l => l.Action);
+            e.HasIndex(l => l.Timestamp);
+        });
+
+        modelBuilder.Entity<FileAttachment>(e =>
+        {
+            e.HasIndex(f => new { f.BizType, f.BizId });
+            e.HasIndex(f => f.Bucket);
+        });
+
+        modelBuilder.Entity<NotificationTemplate>(e =>
+        {
+            e.HasIndex(t => t.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<Notification>(e =>
+        {
+            e.HasIndex(n => n.UserId);
+            e.HasIndex(n => new { n.UserId, n.IsRead });
+            e.HasIndex(n => n.Timestamp);
+        });
+
         modelBuilder.Entity<PersistedGrantEntity>(e =>
         {
             e.HasKey(pg => pg.Key);
@@ -127,6 +187,37 @@ public class AppDbContext : DbContext
             e.HasIndex(pg => pg.ClientId);
             e.HasIndex(pg => pg.Expiration);
         });
+
+        // ───── 多租户实体配置 ─────
+        modelBuilder.Entity<Tenant>(e => e.HasIndex(t => t.Code).IsUnique());
+        modelBuilder.Entity<PlatformUserTenant>(e =>
+            e.HasKey(p => new { p.PlatformUserId, p.TenantId }));
+        modelBuilder.Entity<TenantParam>(e =>
+            e.HasIndex(p => new { p.TenantId, p.Code }).IsUnique());
+        modelBuilder.Entity<TenantDataDictType>(e =>
+            e.HasIndex(t => new { t.TenantId, t.TypeCode }).IsUnique());
+        modelBuilder.Entity<TenantDataDictItem>(e =>
+        {
+            e.HasIndex(i => new { i.TenantId, i.DictTypeId, i.ItemCode }).IsUnique();
+            e.HasIndex(i => i.DictTypeId);
+            e.HasIndex(i => i.ParentId);
+        });
+
+        modelBuilder.Entity<OrganizationUnit>(e =>
+        {
+            e.HasIndex(o => o.Code);
+            e.HasIndex(o => o.ParentId);
+            e.HasIndex(o => o.Path);
+        });
+
+        modelBuilder.Entity<Menu>(e =>
+        {
+            e.HasIndex(m => m.ParentId);
+            e.HasIndex(m => m.PermissionCode);
+        });
+
+        // ───── 多租户全局查询过滤器（ITenantAware 实体的数据隔离）─────
+        ApplyTenantFilters(modelBuilder);
 
         // ───── 软删除全局查询过滤器（排除已软删除的记录） ─────
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
@@ -190,6 +281,16 @@ public class AppDbContext : DbContext
                 entry.Entity.DeletedBy ??= currentUserId;
             }
         }
+
+        // 多租户：自动填充 TenantId
+        var tenantId = _currentUserService.TenantId;
+        foreach (var entry in ChangeTracker.Entries<ITenantAware>())
+        {
+            if (entry.State == EntityState.Added && entry.Entity.TenantId == Guid.Empty)
+            {
+                entry.Entity.TenantId = tenantId ?? Guid.Empty;
+            }
+        }
     }
 
     /// <summary>
@@ -204,5 +305,38 @@ public class AppDbContext : DbContext
             filterExpression.Parameters.Single(), param, filterExpression.Body);
 
         return Expression.Lambda(body, param);
+    }
+
+    /// <summary>
+    /// 多租户全局查询过滤器
+    /// 根据 ICurrentUserService.AccessibleTenantIds 控制可见范围：
+    /// - 租户用户 → 只能看自己租户的数据
+    /// - 平台管理员（已分配）→ 可看已分配租户 + Guid.Empty（通用数据）
+    /// - 无分配记录 → 什么也看不到
+    /// </summary>
+    private void ApplyTenantFilters(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(ITenantAware).IsAssignableFrom(entityType.ClrType))
+            {
+                modelBuilder.Entity(entityType.ClrType)
+                    .HasQueryFilter(BuildTenantFilter(entityType.ClrType));
+            }
+        }
+    }
+
+    private LambdaExpression BuildTenantFilter(Type entityType)
+    {
+        // ⚠️ 关键：不在模型构建时捕获 AccessibleTenantIds 的副本，
+        // 而是在查询时通过 _currentUserService 实时求值
+        var param = Expression.Parameter(entityType, "e");
+
+        Expression<Func<ITenantAware, bool>> filter = e =>
+            _currentUserService.AccessibleTenantIds.Count == 0
+                ? false
+                : e.TenantId == Guid.Empty || _currentUserService.AccessibleTenantIds.Contains(e.TenantId);
+
+        return ConvertFilterExpression(filter, entityType);
     }
 }

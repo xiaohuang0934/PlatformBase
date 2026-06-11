@@ -116,7 +116,7 @@ public class DataDictService : IDataDictService
             .ToListAsync(ct);
 
         foreach (var item in items)
-            _context.Set<DataDictItem>().Remove(item);
+            _uow.Repository<DataDictItem>().SoftDelete(item);
 
         _uow.Repository<DataDictType>().SoftDelete(entity);
         await _uow.SaveChangesAsync(ct);
@@ -242,7 +242,7 @@ public class DataDictService : IDataDictService
     {
         if (_redis == null) return;
         try { await _redis.KeyDeleteAsync($"{CacheKeyPrefix}{typeCode}"); }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 
     private async Task<IReadOnlyList<DataDictItemDto>?> TryGetCacheAsync(string typeCode)
@@ -254,7 +254,7 @@ public class DataDictService : IDataDictService
             if (value.HasValue && !value.IsNullOrEmpty)
                 return JsonSerializer.Deserialize<List<DataDictItemDto>>(value!);
         }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
         return null;
     }
 
@@ -268,7 +268,7 @@ public class DataDictService : IDataDictService
                 JsonSerializer.Serialize(items),
                 TimeSpan.FromMinutes(CacheExpirationMinutes));
         }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 
     private async Task<string> GetTypeCodeAsync(Guid dictTypeId, CancellationToken ct)

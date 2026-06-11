@@ -50,6 +50,9 @@ public static class HangfireExtensions
         foreach (var definition in JobRegistry.AllJobs)
             services.AddTransient(definition.JobType);
 
+        // 注册操作日志写入 Job
+        services.AddTransient<OperationLogWriterJob>();
+
         return services;
     }
 
@@ -57,7 +60,17 @@ public static class HangfireExtensions
     public static async Task UseHangfireSyncAsync(this IApplicationBuilder app)
     {
         using var scope = app.ApplicationServices.CreateScope();
-        var bgService = scope.ServiceProvider.GetRequiredService<IBackgroundJobService>();
-        await bgService.SyncFromDatabaseAsync();
+        var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("HangfireSync");
+
+        try
+        {
+            var bgService = scope.ServiceProvider.GetRequiredService<IBackgroundJobService>();
+            await bgService.SyncFromDatabaseAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Hangfire 任务同步失败，应用将继续启动，可通过 API 手动管理任务");
+        }
     }
 }

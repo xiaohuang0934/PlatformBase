@@ -1,3 +1,4 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using PlatformBase.Application.Dtos;
 using PlatformBase.Application.Services;
@@ -10,8 +11,9 @@ namespace PlatformBase.Host.Controllers;
 /// <summary>
 /// 权限管理 API 控制器，提供权限点的完整 CRUD 管理
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/permissions")]
+[Route("api/v{version:apiVersion}/permissions")]
 public class PermissionController : ControllerBase
 {
     private readonly IPermissionService _service;
@@ -44,7 +46,7 @@ public class PermissionController : ControllerBase
 
     /// <summary>创建权限点</summary>
     [HttpPost]
-    [Permission("perms.list")] // 权限管理目前无独立 create/edit/delete 权限编码，复用 list
+    [Permission("perms.create")]
     public async Task<ApiResult<PermissionDto>> Create(
         [FromBody] CreatePermissionDto dto, CancellationToken ct)
     {
@@ -54,7 +56,7 @@ public class PermissionController : ControllerBase
 
     /// <summary>更新权限点</summary>
     [HttpPut("{id:guid}")]
-    [Permission("perms.list")]
+    [Permission("perms.edit")]
     public async Task<ApiResult<PermissionDto>> Update(
         Guid id, [FromBody] UpdatePermissionDto dto, CancellationToken ct)
     {
@@ -64,7 +66,7 @@ public class PermissionController : ControllerBase
 
     /// <summary>删除权限点（物理删除，级联清理关联）</summary>
     [HttpDelete("{id:guid}")]
-    [Permission("perms.list")]
+    [Permission("perms.delete")]
     public async Task<ApiResult> Delete(Guid id, CancellationToken ct)
     {
         await _service.DeleteAsync(id, ct);

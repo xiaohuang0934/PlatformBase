@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="用户名或密码错误" xml:space="preserve">
+    <value>Invalid username or password</value>
+  </data>
+  <data name="账户已被禁用" xml:space="preserve">
+    <value>Account has been disabled</value>
+  </data>
+  <data name="账户已锁定，请稍后重试" xml:space="preserve">
+    <value>Account is locked, please try again later</value>
+  </data>
+  <data name="当前密码错误" xml:space="preserve">
+    <value>Current password is incorrect</value>
+  </data>
+  <data name="登录尝试次数过多，请{0}分钟后重试" xml:space="preserve">
+    <value>Too many login attempts, please retry in {0} minute(s)</value>
+  </data>
+  <data name="认证失败，请重新登录" xml:space="preserve">
+    <value>Authentication failed, please login again</value>
+  </data>
+  <data name="Token已失效，请重新登录" xml:space="preserve">
+    <value>Token has expired, please login again</value>
+  </data>
+</root>

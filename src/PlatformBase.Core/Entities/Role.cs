@@ -4,7 +4,7 @@ namespace PlatformBase.Core.Entities;
 /// 系统角色实体，继承 <see cref="AuditableEntity"/> 自动获得创建/修改审计追踪
 /// 角色是权限的集合载体，通过 <see cref="RolePermission"/> 关联到具体 API 权限
 /// </summary>
-public class Role : AuditableEntity
+public partial class Role : AuditableEntity
 {
     /// <summary>角色名称，全局唯一（如：Admin / Manager / User）</summary>
     public string Name { get; set; } = string.Empty;

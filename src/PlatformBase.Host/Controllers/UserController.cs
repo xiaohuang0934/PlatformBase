@@ -1,10 +1,14 @@
+using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using PlatformBase.Application.Dtos;
 using PlatformBase.Application.Services;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
+using PlatformBase.Core.Repositories;
+using PlatformBase.Core.Services;
 using PlatformBase.Host.Authorization;
+using PlatformBase.Host.Filters;
 
 namespace PlatformBase.Host.Controllers;
 
@@ -12,15 +16,20 @@ namespace PlatformBase.Host.Controllers;
 /// 用户管理 API 控制器，提供用户的完整 CRUD + 角色分配 + 启用/禁用 + 密码重置
 /// 认证相关端点（login/profile/change-password）在 AuthController 中
 /// </summary>
+[ApiVersion("1.0")]
 [ApiController]
-[Route("api/users")]
+[Route("api/v{version:apiVersion}/users")]
 public class UserController : ControllerBase
 {
     private readonly IUserService _service;
+    private readonly IUnitOfWork _uow;
+    private readonly ICurrentUserService _currentUser;
 
-    public UserController(IUserService service)
+    public UserController(IUserService service, IUnitOfWork uow, ICurrentUserService currentUser)
     {
         _service = service;
+        _uow = uow;
+        _currentUser = currentUser;
     }
 
     /// <summary>分页查询用户列表</summary>
@@ -61,47 +70,62 @@ public class UserController : ControllerBase
     /// <summary>创建用户</summary>
     [HttpPost]
     [Permission("users.create")]
+    [OperationLog("create", Resource = "User")]
     public async Task<ApiResult<UserDto>> Create(
         [FromBody] CreateUserDto dto, CancellationToken ct)
     {
-        var user = new User
+        await _uow.BeginTransactionAsync(ct);
+        try
         {
-            Username = dto.Username,
-            NormalizedUsername = dto.Username.ToUpperInvariant(),
-            Email = dto.Email,
-            NormalizedEmail = dto.Email?.ToUpperInvariant(),
-            PhoneNumber = dto.PhoneNumber,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-            IsActive = true
-        };
+            var user = new User
+            {
+                Username = dto.Username,
+                NormalizedUsername = dto.Username.ToUpperInvariant(),
+                Email = dto.Email,
+                NormalizedEmail = dto.Email?.ToUpperInvariant(),
+                PhoneNumber = dto.PhoneNumber,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                IsActive = true,
+                TenantId = _currentUser.TenantId,
+                UserType = _currentUser.IsSuperAdmin && _currentUser.TenantId == null
+                    ? UserType.PlatformAdmin : UserType.TenantUser
+            };
 
-        var created = await _service.CreateAsync(user, ct);
+            var created = await _service.CreateAsync(user, ct);
 
-        if (dto.RoleIds?.Count > 0)
-        {
-            foreach (var roleId in dto.RoleIds)
-                await _service.AddToRoleAsync(created.Id, roleId, ct);
+            if (dto.RoleIds?.Count > 0)
+            {
+                foreach (var roleId in dto.RoleIds)
+                    await _service.AddToRoleAsync(created.Id, roleId, ct);
+            }
+
+            await _uow.CommitTransactionAsync(ct);
+            var roles = await _service.GetRolesAsync(created.Id, ct);
+
+            return ApiResult<UserDto>.Ok(new UserDto
+            {
+                Id = created.Id,
+                Username = created.Username,
+                Email = created.Email,
+                EmailConfirmed = created.EmailConfirmed,
+                PhoneNumber = created.PhoneNumber,
+                IsActive = created.IsActive,
+                Roles = roles,
+                CreatedAt = created.CreatedAt,
+                UpdatedAt = created.UpdatedAt
+            });
         }
-
-        var roles = await _service.GetRolesAsync(created.Id, ct);
-
-        return ApiResult<UserDto>.Ok(new UserDto
+        catch
         {
-            Id = created.Id,
-            Username = created.Username,
-            Email = created.Email,
-            EmailConfirmed = created.EmailConfirmed,
-            PhoneNumber = created.PhoneNumber,
-            IsActive = created.IsActive,
-            Roles = roles,
-            CreatedAt = created.CreatedAt,
-            UpdatedAt = created.UpdatedAt
-        });
+            await _uow.RollbackTransactionAsync(ct);
+            throw;
+        }
     }
 
     /// <summary>更新用户基本信息</summary>
     [HttpPut("{id:guid}")]
     [Permission("users.edit")]
+    [OperationLog("update", Resource = "User")]
     public async Task<ApiResult<UserDto>> Update(
         Guid id, [FromBody] UpdateUserDto dto, CancellationToken ct)
     {
@@ -137,6 +161,7 @@ public class UserController : ControllerBase
     /// <summary>删除用户（软删除）</summary>
     [HttpDelete("{id:guid}")]
     [Permission("users.delete")]
+    [OperationLog("delete", Resource = "User")]
     public async Task<ApiResult> Delete(Guid id, CancellationToken ct)
     {
         await _service.SoftDeleteAsync(id, ct);
@@ -188,19 +213,22 @@ public class UserController : ControllerBase
         if (user == null)
             return ApiResult.Fail(ErrorCode.UserNotFound, "用户不存在");
 
-        // 全量替换角色：先移除现有角色，再分配新角色
-        await _service.ClearRolesAsync(id, ct);
-        foreach (var roleId in roleIds)
-            await _service.AddToRoleAsync(id, roleId, ct);
+        await _uow.BeginTransactionAsync(ct);
+        try
+        {
+            // 全量替换角色：先移除现有角色，再分配新角色
+            await _service.ClearRolesAsync(id, ct);
+            foreach (var roleId in roleIds)
+                await _service.AddToRoleAsync(id, roleId, ct);
+
+            await _uow.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _uow.RollbackTransactionAsync(ct);
+            throw;
+        }
 
         return ApiResult.Ok("角色分配成功");
     }
-}
-
-/// <summary>
-/// 重置密码请求体
-/// </summary>
-public class ResetPasswordRequest
-{
-    public string NewPassword { get; set; } = string.Empty;
 }

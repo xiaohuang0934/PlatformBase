@@ -32,6 +32,7 @@ tempkey.jwk
 
 ## Runtime & Logs
 logs/
+uploads/
 *.log
 
 ## Test Results / Coverage

@@ -7,6 +7,7 @@ using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
+using PlatformBase.Core.Extensions;
 using PlatformBase.Infrastructure.Data;
 using StackExchange.Redis;
 
@@ -23,7 +24,7 @@ public class PermissionService : IPermissionService
     private readonly AppDbContext _context;
     private readonly IDatabase? _redis;
 
-    private const int CacheExpirationMinutes = 30;
+    private const int CacheExpirationMinutes = 5; // 缩短 TTL 以降低权限变更后的不一致窗口
     private const string CacheKeyPrefix = "user:perms:";
 
     public PermissionService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider)
@@ -59,7 +60,7 @@ public class PermissionService : IPermissionService
     {
         if (_redis == null) return;
         try { await _redis.KeyDeleteAsync($"{CacheKeyPrefix}{userId}"); }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 
     // ═══════════════════ 权限点 CRUD 管理（v1.1） ═══════════════════
@@ -67,45 +68,24 @@ public class PermissionService : IPermissionService
     public async Task<PagedResult<PermissionDto>> GetPagedAsync(
         PermissionQuery query, CancellationToken ct = default)
     {
-        Expression<Func<Permission, bool>>? filter = null;
+        var kw = query.Keyword?.Trim().ToUpperInvariant();
+        var group = query.GroupName?.Trim();
 
-        if (!string.IsNullOrWhiteSpace(query.ResourcePath))
+        var filter = ((Expression<Func<Permission, bool>>?)null)
+            .AppendIf(!string.IsNullOrWhiteSpace(query.ResourcePath),
+                p => p.ResourcePath == query.ResourcePath!.Trim())
+            .AppendIf(!string.IsNullOrWhiteSpace(group),
+                p => p.GroupName == group)
+            .AppendIf(query.IsEnabled.HasValue,
+                p => p.IsEnabled == query.IsEnabled.Value)
+            .AppendIf(!string.IsNullOrWhiteSpace(kw),
+                p => p.Code.ToUpper().Contains(kw!) || p.Name.ToUpper().Contains(kw!));
+
+        var result = await _uow.Repository<Permission>().GetPagedAsync(new PagedRequest
         {
-            var path = query.ResourcePath.Trim();
-            filter = p => p.ResourcePath == path;
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.GroupName))
-        {
-            var group = query.GroupName.Trim();
-            Expression<Func<Permission, bool>> gFilter = p => p.GroupName == group;
-            filter = filter == null ? gFilter : CombineAnd(filter, gFilter);
-        }
-
-        if (query.IsEnabled.HasValue)
-        {
-            var enabled = query.IsEnabled.Value;
-            Expression<Func<Permission, bool>> eFilter = p => p.IsEnabled == enabled;
-            filter = filter == null ? eFilter : CombineAnd(filter, eFilter);
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.Keyword))
-        {
-            var kw = query.Keyword.Trim().ToUpperInvariant();
-            Expression<Func<Permission, bool>> kwFilter = p =>
-                p.Code.ToUpper().Contains(kw) || p.Name.ToUpper().Contains(kw);
-            filter = filter == null ? kwFilter : CombineAnd(filter, kwFilter);
-        }
-
-        var request = new PagedRequest
-        {
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize,
-            SortField = query.SortField ?? nameof(Permission.SortOrder),
-            IsAscending = query.IsAscending
-        };
-
-        var result = await _uow.Repository<Permission>().GetPagedAsync(request, filter, ct);
+            PageIndex = query.PageIndex, PageSize = query.PageSize,
+            SortField = query.SortField ?? nameof(Permission.SortOrder), IsAscending = query.IsAscending
+        }, filter, ct);
         return new PagedResult<PermissionDto>(
             result.TotalCount, result.PageIndex, result.PageSize,
             result.Items.Select(ToDto));
@@ -173,8 +153,12 @@ public class PermissionService : IPermissionService
         // 级联清理用户-权限关联
         var userPerms = await _context.Set<UserPermission>()
             .Where(up => up.PermissionId == id).ToListAsync(ct);
-        _context.Set<UserPermission>().RemoveRange(userPerms);
 
+        // 失效受影响用户的权限缓存
+        foreach (var up in userPerms)
+            await InvalidateUserCacheAsync(up.UserId, ct);
+
+        _context.Set<UserPermission>().RemoveRange(userPerms);
         _uow.Repository<Permission>().Delete(entity);
         await _uow.SaveChangesAsync(ct);
     }
@@ -191,16 +175,6 @@ public class PermissionService : IPermissionService
         IsEnabled = entity.IsEnabled,
         Description = entity.Description
     };
-
-    private static Expression<Func<T, bool>> CombineAnd<T>(
-        Expression<Func<T, bool>> left, Expression<Func<T, bool>> right)
-    {
-        var param = Expression.Parameter(typeof(T));
-        var body = Expression.AndAlso(
-            Expression.Invoke(left, param),
-            Expression.Invoke(right, param));
-        return Expression.Lambda<Func<T, bool>>(body, param);
-    }
 
     private async Task<IReadOnlyList<string>> QueryPermissionCodesFromDbAsync(
         Guid userId, CancellationToken cancellationToken)
@@ -262,7 +236,7 @@ public class PermissionService : IPermissionService
             if (value.HasValue)
                 return JsonSerializer.Deserialize<List<string>>(value!) ?? [];
         }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
         return null;
     }
 
@@ -276,6 +250,6 @@ public class PermissionService : IPermissionService
                 JsonSerializer.Serialize(codes),
                 TimeSpan.FromMinutes(CacheExpirationMinutes));
         }
-        catch { }
+        catch { /* Redis 不可用，降级跳过 */ }
     }
 }

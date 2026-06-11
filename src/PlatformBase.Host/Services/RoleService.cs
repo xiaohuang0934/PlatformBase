@@ -6,42 +6,49 @@ using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
+using PlatformBase.Core.Extensions;
+using PlatformBase.Core.Services;
 using PlatformBase.Infrastructure.Data;
 
 namespace PlatformBase.Host.Services;
 
 /// <summary>
 /// 角色管理服务实现，提供角色的完整 CRUD + 权限分配能力
+/// 权限变更时自动失效受影响用户的权限缓存
 /// </summary>
 public class RoleService : IRoleService
 {
     private readonly IUnitOfWork _uow;
     private readonly AppDbContext _context;
+    private readonly StackExchange.Redis.IDatabase? _redis;
+    private readonly ICurrentUserService _currentUser;
 
-    public RoleService(IUnitOfWork uow, AppDbContext context)
+    public RoleService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider, ICurrentUserService currentUser)
     {
         _uow = uow;
         _context = context;
+        _redis = serviceProvider.GetService<StackExchange.Redis.IConnectionMultiplexer>()?.GetDatabase();
+        _currentUser = currentUser;
     }
 
     public async Task<PagedResult<RoleDto>> GetPagedAsync(RoleQuery query, CancellationToken ct = default)
     {
-        Expression<Func<Role, bool>>? filter = null;
-        if (!string.IsNullOrWhiteSpace(query.Keyword))
-        {
-            var kw = query.Keyword.Trim().ToUpperInvariant();
-            filter = r => r.NormalizedName.Contains(kw);
-        }
+        var accessibleIds = _currentUser.AccessibleTenantIds;
+        var kw = query.Keyword?.Trim().ToUpperInvariant();
 
-        var request = new PagedRequest
-        {
-            PageIndex = query.PageIndex,
-            PageSize = query.PageSize,
-            SortField = query.SortField ?? nameof(Role.Name),
-            IsAscending = query.IsAscending
-        };
+        var filter = ((Expression<Func<Role, bool>>?)null)
+            .AppendIf(accessibleIds.Count > 0 && _currentUser.IsSuperAdmin,
+                r => r.TenantId == null || accessibleIds.Contains(r.TenantId.Value))
+            .AppendIf(accessibleIds.Count > 0 && !_currentUser.IsSuperAdmin,
+                r => r.TenantId != null && accessibleIds.Contains(r.TenantId.Value))
+            .AppendIf(accessibleIds.Count == 0 && !_currentUser.IsSuperAdmin, r => false)
+            .AppendIf(!string.IsNullOrWhiteSpace(kw), r => r.NormalizedName.Contains(kw!));
 
-        var result = await _uow.Repository<Role>().GetPagedAsync(request, filter, ct);
+        var result = await _uow.Repository<Role>().GetPagedAsync(new PagedRequest
+        {
+            PageIndex = query.PageIndex, PageSize = query.PageSize,
+            SortField = query.SortField ?? nameof(Role.Name), IsAscending = query.IsAscending
+        }, filter, ct);
         return new PagedResult<RoleDto>(
             result.TotalCount, result.PageIndex, result.PageSize,
             result.Items.Select(ToDto));
@@ -55,7 +62,7 @@ public class RoleService : IRoleService
 
     public async Task<RoleDto> CreateAsync(CreateRoleDto dto, CancellationToken ct = default)
     {
-        var normalized = Normalize(dto.Name);
+        var normalized = StringExtensions.Normalize(dto.Name);
         var exists = await _uow.Repository<Role>()
             .AnyAsync(r => r.NormalizedName == normalized, ct);
         if (exists)
@@ -65,7 +72,8 @@ public class RoleService : IRoleService
         {
             Name = dto.Name,
             NormalizedName = normalized,
-            Description = dto.Description
+            Description = dto.Description,
+            TenantId = _currentUser.TenantId
         };
 
         var created = await _uow.Repository<Role>().AddAsync(role, ct);
@@ -81,7 +89,7 @@ public class RoleService : IRoleService
 
         if (dto.Name != null)
         {
-            var normalized = Normalize(dto.Name);
+            var normalized = StringExtensions.Normalize(dto.Name);
             var exists = await _uow.Repository<Role>()
                 .AnyAsync(r => r.NormalizedName == normalized && r.Id != id, ct);
             if (exists)
@@ -140,27 +148,39 @@ public class RoleService : IRoleService
         if (role == null)
             throw new BusinessException("角色不存在", ErrorCode.DataNotFound);
 
-        var existing = await _context.Set<RolePermission>()
-            .Where(rp => rp.RoleId == roleId)
-            .ToListAsync(ct);
-        _context.Set<RolePermission>().RemoveRange(existing);
-
-        if (permissionCodes.Count > 0)
+        await _uow.BeginTransactionAsync(ct);
+        try
         {
-            var permissions = await _uow.Repository<Permission>()
-                .FindAsync(p => permissionCodes.Contains(p.Code), ct);
+            var existing = await _context.Set<RolePermission>()
+                .Where(rp => rp.RoleId == roleId)
+                .ToListAsync(ct);
+            _context.Set<RolePermission>().RemoveRange(existing);
 
-            foreach (var perm in permissions)
+            if (permissionCodes.Count > 0)
             {
-                _context.Set<RolePermission>().Add(new RolePermission
+                var permissions = await _uow.Repository<Permission>()
+                    .FindAsync(p => permissionCodes.Contains(p.Code), ct);
+
+                foreach (var perm in permissions)
                 {
-                    RoleId = roleId,
-                    PermissionId = perm.Id
-                });
+                    _context.Set<RolePermission>().Add(new RolePermission
+                    {
+                        RoleId = roleId,
+                        PermissionId = perm.Id
+                    });
+                }
             }
+
+            await _uow.SaveChangesAsync(ct);
+            await _uow.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _uow.RollbackTransactionAsync(ct);
+            throw;
         }
 
-        await _uow.SaveChangesAsync(ct);
+        await InvalidateAffectedUsersCacheAsync(roleId, ct);
     }
 
     private static RoleDto ToDto(Role entity) => new()
@@ -172,5 +192,20 @@ public class RoleService : IRoleService
         UpdatedAt = entity.UpdatedAt
     };
 
-    private static string Normalize(string value) => (value ?? string.Empty).ToUpperInvariant();
+    /// <summary>失效所有拥有指定角色的用户权限缓存</summary>
+    private async Task InvalidateAffectedUsersCacheAsync(Guid roleId, CancellationToken ct)
+    {
+        if (_redis == null) return;
+        try
+        {
+            var userIds = await _context.Set<UserRole>()
+                .Where(ur => ur.RoleId == roleId)
+                .Select(ur => ur.UserId)
+                .ToListAsync(ct);
+
+            foreach (var userId in userIds)
+                await _redis.KeyDeleteAsync($"user:perms:{userId}");
+        }
+        catch { /* Redis 不可用，降级跳过 */ }
+    }
 }
