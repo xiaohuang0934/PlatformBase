@@ -30,7 +30,7 @@ public static class DataSeeder
         await SeedTestUserAsync(uow, context, adminId);
         await SeedSystemParamsAsync(uow, context, adminId);
         await SeedDataDictAsync(uow, context, adminId);
-        await SeedNotificationTemplatesAsync(uow, adminId);
+        await SeedNotificationTemplatesAsync(uow, context, adminId);
         await SeedTenantsAsync(uow, context, adminId);
         await SeedMenusAsync(uow, adminId);
 
@@ -355,9 +355,9 @@ public static class DataSeeder
     ];
 
     /// <summary>初始化通知模板种子数据（幂等）</summary>
-    private static async Task SeedNotificationTemplatesAsync(IUnitOfWork uow, Guid createdBy)
+    private static async Task SeedNotificationTemplatesAsync(IUnitOfWork uow, AppDbContext context, Guid createdBy)
     {
-        var existingCodes = (await uow.Repository<NotificationTemplate>().GetAllAsync())
+        var existingCodes = (await context.Set<NotificationTemplate>().IgnoreQueryFilters().ToListAsync())
             .Select(t => t.Code).ToHashSet();
 
         foreach (var seed in GetSeedNotificationTemplates())
