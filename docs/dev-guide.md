@@ -253,3 +253,56 @@ GET /api/operation-logs?userId={guid}&action=create&username=admin&startTime=202
 ### Q: 如何让业务实体也自动审计？
 
 继承 `AuditableEntity` 或 `SoftDeleteEntity` 即可，不需要额外配置。
+
+## 密码校验 / Password Validation (v1.6)
+
+使用 FluentValidation 自动校验，在 `Host/Validators/` 下添加校验器即可：
+
+```csharp
+public class CreateUserValidator : AbstractValidator<CreateUserDto>
+{
+    public CreateUserValidator()
+    {
+        RuleFor(x => x.Password)
+            .MinimumLength(8)
+            .Matches("[A-Z]").WithMessage("必须包含大写字母")
+            .Matches("[a-z]").WithMessage("必须包含小写字母")
+            .Matches("[0-9]").WithMessage("必须包含数字")
+            .Matches("[^a-zA-Z0-9]").WithMessage("必须包含特殊字符");
+    }
+}
+```
+
+校验失败时自动返回 HTTP 400 + 中文错误消息，无需在 Controller 中手动处理。
+
+## SMTP 邮件配置 / SMTP Configuration
+
+SMTP 配置存储在 SystemParam 中（`smtp:default`），运行时修改无需重启：
+
+```csharp
+// Value 格式：JSON 字符串
+{
+  "Host": "smtp.qq.com",
+  "Port": 587,
+  "User": "admin@qq.com",
+  "Password": "授权码",
+  "From": "noreply@qq.com"
+}
+```
+
+支持多配置：`smtp:alert`（告警专用）、`smtp:marketing`（营销专用）。为空则跳过发送。
+
+## 审计日志快照 / Audit Snapshot
+
+`AppDbContext.CaptureChangeSnapshot()` 自动捕获所有数据修改的 Before/After 值，OperationLogFilter 自动合并到日志 Detail 字段。无需手动干预。
+
+## 健康检查扩展 / Health Check Extensions
+
+```csharp
+// 生产环境增强健康检查（需安装 NuGet 包）：
+// AspNetCore.HealthChecks.Redis
+// AspNetCore.HealthChecks.EntityFrameworkCore
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<AppDbContext>("DB")
+    .AddRedis(connectionString, "Redis");
+```

@@ -101,6 +101,8 @@ GetValueAsync(code, tenantId):
 - `GET /api/v1/operation-logs/{id}` — 详情
 - `DELETE /api/v1/operation-logs/cleanup?daysAgo=90` — 清理
 
+**审计快照（v1.6）：** `AppDbContext.CaptureChangeSnapshot()` 自动捕获所有数据修改的 Before/After 值，合并到 OperationLog.Detail 字段。例如修改角色描述时：`{"Entity":"Role","Changes":{"Description":{"Old":"old desc","New":"new desc"}}}`
+
 ---
 
 ## 定时任务 (JobSchedule)
@@ -154,7 +156,12 @@ GetValueAsync(code, tenantId):
 
 **发送链路：**
 `INotificationService.SendByTemplateAsync(userId, templateCode, variables)`
-  → 查模板 → `{变量}` 替换 → 写入 Notifications 表 → `IChannelProvider.SendAsync`（预留邮件/短信扩展）
+  → 查模板 → `{变量}` 替换 → 写入 Notifications 表 → `IChannelProvider.SendAsync`（InApp + SMTP 邮件）
+
+**通道（v1.6）：**
+- `InAppChannelProvider` — 站内信（默认）
+- `SmtpChannelProvider` — SMTP 邮件，配置存储在 SystemParam(smtp:default)，支持多配置(smtp:alert/smtp:marketing) + 租户覆盖
+- 短信/企业微信 — 预留接口
 
 **API：**
 - `GET /api/v1/notifications` — 当前用户通知列表 + 未读数

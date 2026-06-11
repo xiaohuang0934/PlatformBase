@@ -151,7 +151,9 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 | Cache | StackExchange.Redis | Permission cache + rate-limit |
 | Logging | Serilog | Console + daily rolling file |
 | API Docs | Swashbuckle | OpenAPI 3.0 + Bearer JWT |
-| Validation | FluentValidation | Pipeline validation |
+| Validation | FluentValidation | Pipeline validation + 密码复杂度 |
+| Request Logging | Serilog RequestLogging | 全量请求记录(路径/方法/耗时/状态码) |
+| Audit Snapshot | EF Core ChangeTracker | 数据变更前后快照自动捕获 |
 
 ---
 
@@ -195,27 +197,27 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 - [x] Login lockout + rate-limit (DB + Redis)
 
 ### 基础业务模块 / Basic Business Modules
-- [x] 系统参数 — Key-Value 配置中心，Redis 缓存 + 运行时修改无需重启
-- [x] 数据字典 — 类型/项两级结构，Redis 缓存，支持层级 + 按编码批量获取
-- [x] 用户管理 — 完整 CRUD + 角色分配 + 启用/禁用 + 密码重置
-- [x] 角色管理 — 完整 CRUD + 权限分配
-- [x] 权限管理 — 完整 CRUD + 级联清理
-- [x] 操作日志 — 关键操作异步记录（Hangfire），`[OperationLog]` ActionFilter
-- [x] 消息通知 — 站内信 + 消息模板（welcome/password_changed/account_locked）
-- [x] 部门管理 — 树形组织架构，关联用户
-- [x] 文件管理 — 统一上传/下载/预览，本地存储 + OSS 扩展点
-- [x] 数据导入导出 — 通用 Excel/CSV 导入导出
-- [x] 菜单管理 — 树形菜单 / 按钮级权限绑定 / 前端动态路由
-- [x] 数据权限 — [DataScope] ActionFilter，物化路径行级过滤
+- [x] 系统参数 — Key-Value + 功能开关 + SMTP 配置（支持多配置+租户覆盖）
+- [x] 数据字典 — Type/Item 两级 + 树形 ParentId + Redis 缓存
+- [x] 用户管理 — 完整 CRUD + FluentValidation 密码复杂度（大小写+数字+符号）
+- [x] 角色管理 — CRUD + 权限全量替换 + 事务保护
+- [x] 权限管理 — CRUD + 级联清理 + Code 匹配鉴权
+- [x] 操作日志 — ActionFilter + Hangfire 异步入队 + ChangeTracker 审计快照
+- [x] 消息通知 — 站内信 + 模板 + SMTP 邮件通道（支持多配置+租户覆盖）
+- [x] 部门管理 — 树形 + 物化路径(Path LIKE 查询子部门)
+- [x] 文件管理 — 上传/下载 + 本地存储 + OSS 预留
+- [x] 数据导入导出 — Excel(ClosedXML) + CSV(CsvHelper) 自动识别
+- [x] 菜单管理 — 树形 + PermissionCode 权限绑定 + 权限裁剪
+- [x] 数据权限 — [DataScope] ActionFilter 预留框架
 
 ### 进阶特性 / Advanced Features
-- [x] Background jobs (Hangfire) — API 启停/动态Cron/手动触发/Dashboard
-- [x] 事件总线 — Channel 发布订阅，预留 RabbitMQ 切换
-- [x] 多租户 — ITenantAware 全局过滤器，租户/平台双表方案
-- [x] 分布式锁 — Redis NX/EX，防止定时任务重复执行
-- [x] 分布式 ID 生成 — GuidIdGenerator（可替换 Snowflake）
-- [x] API 版本管理 — `[ApiVersion]` + Swagger 分组
-- [x] API 限流 — `[RateLimit]` ActionFilter，Redis 滑动窗口
-- [x] 国际化 — `IStringLocalizer` + Resource.resx 中/英
-- [ ] 客户端管理 — 多端 Client 注册管理（预留）
-- [ ] 分布式追踪 (OpenTelemetry) — 链路追踪（按需启用）
+- [x] Background jobs (Hangfire) — API 启停/动态Cron/Dashboard
+- [x] 事件总线 — Channel + IEventPublisher 预留 RabbitMQ
+- [x] 多租户 — ITenantAware 全局过滤器 + AccessibleTenantIds + 平台/租户双表
+- [x] 分布式锁(ID) + API版本 + 限流 + 国际化
+- [x] 请求日志 — Serilog RequestLogging(全量/路径/耗时)
+- [x] 审计日志增强 — ChangeTracker 数据变更快照
+- [x] 告警通知 — SMTP 邮件通道(SystemParam 配置)
+- [x] 优雅关闭 — IHostApplicationLifetime
+- [ ] 客户端管理 — 多端 Client 注册（预留）
+- [ ] 分布式追踪 (OpenTelemetry)

@@ -1,6 +1,48 @@
 # 变更日志 / Changelog
 
-## v1.4 — 多租户可见性完善 + 代码优雅化 (2026-06-10)
+## v1.6 — 安全加固 + 可观测性 + 告警通知 (2026-06-11)
+
+### 新增
+
+- **请求日志 (Serilog RequestLogging)**
+  - `app.UseSerilogRequestLogging()` — 每个 HTTP 请求记录路径/方法/耗时/状态码/TraceId
+  - 零代码改动，仅 3 行配置
+
+- **FluentValidation 密码复杂度**
+  - `CreateUserValidator` — 密码复杂度校验（大写+小写+数字+特殊字符 四选四）+ 用户名长度
+  - `ChangePasswordValidator` — 跨字段校验（新密码 ≠ 当前密码）
+  - `ResetPasswordValidator` — 密码强度校验
+  - `AddFluentValidationAutoValidation()` 替换 DataAnnotations 方式
+
+- **审计日志增强 — ChangeTracker 快照**
+  - `AppDbContext.CaptureChangeSnapshot()` — 捕获所有 Modified 实体的 Old/New 值
+  - `OperationLogFilter` 自动合并快照到 Detail 字段
+  - 过滤 Key/ForeignKey/Navigation 属性，避免循环引用
+
+- **告警通知 SMTP 增强**
+  - `SmtpChannelProvider` — SMTP 邮件通道
+  - 配置从 `appsettings.json` → `SystemParam(smtp:default)`，运行时修改无需重启
+  - 支持多 SMTP 配置（smtp:alert / smtp:marketing / smtp:default）
+  - 支持租户覆盖（TenantParam Fallback）
+  - `SmtpConfig` DTO 用于 JSON 反序列化
+  - 修复 Singleton/Scoped 生命周期冲突（IServiceProvider 懒解析）
+
+- **优雅关闭**
+  - `IHostApplicationLifetime` — SIGTERM 时等待 10s 处理 Hangfire 任务
+  - `Program.cs` 末尾注册
+
+- **部署指南增强**
+  - `docs/deployment.md` — 顶部新增 ⚠️ Migration 必用警告（生产环境 `EnsureCreated` ≠ `Migration`）
+
+### 变更
+
+- `OperationLogFilter` 注入 `AppDbContext`，读取 `ChangeSnapshot` 属性
+- `SmtpChannelProvider` 从 `IConfiguration` → `ISystemParamService`（IServiceProvider）
+- 健康检查注释增加扩展指引（Redis/Disk 需 NuGet 包）
+
+---
+
+## v1.5 — 多租户可见性完善 + 全模块补齐 + 代码优雅化 (2026-06-10)
 
 ### 新增
 
