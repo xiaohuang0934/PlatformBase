@@ -3,6 +3,8 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Globalization;
 using Asp.Versioning;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using Hangfire;
 using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -22,6 +24,7 @@ using PlatformBase.Host.Middleware;
 using PlatformBase.Host.Services;
 using PlatformBase.Host.NotificationProviders;
 using PlatformBase.Host.StorageProviders;
+using PlatformBase.Host.Validators;
 using PlatformBase.Infrastructure.Extensions;
 using Serilog;
 
@@ -33,8 +36,11 @@ builder.Host.UseSerilog((context, config) =>
     config.ReadFrom.Configuration(context.Configuration);
 });
 
-// ═══════════════════ 健康检查 ═══════════════════
+// ═══════════════════ 健康检查（DB 连接） ═══════════════════
 builder.Services.AddHealthChecks();
+// 增强健康检查（需要 NuGet 包，生产环境按需安装）：
+// .AddDbContextCheck<AppDbContext>("DB")
+// .AddRedis(connectionString, "Redis")
 
 // ═══════════════════ 用户会话上下文（AppDbContext 依赖它，必须在 AddDatabase 之前注册） ═══════════════════
 builder.Services.AddHttpContextAccessor();
@@ -56,6 +62,10 @@ builder.Services.AddControllers(options =>
 });
 builder.Services.AddEndpointsApiExplorer();
 
+// ═══════════════════ FluentValidation 自动校验 ═══════════════════
+builder.Services.AddFluentValidationAutoValidation()
+    .AddValidatorsFromAssemblyContaining<CreateUserValidator>();
+
 // ═══════════════════ 业务服务注册 ═══════════════════
 // 根据命名约定自动扫描：Application 层 I*Service → Host 层 *Service，统一注册为 Scoped
 builder.Services.AddApplicationServices();
@@ -70,6 +80,8 @@ builder.Services.AddScoped<IExportService, ImportExportService>();
 builder.Services.AddScoped<IImportService, ImportExportService>();
 builder.Services.AddSingleton<ILockService, RedisLockService>();
 builder.Services.AddSingleton<IIdGenerator, GuidIdGenerator>();
+builder.Services.AddSingleton<PlatformBase.Host.NotificationProviders.IChannelProvider, PlatformBase.Host.NotificationProviders.InAppChannelProvider>();
+builder.Services.AddSingleton<PlatformBase.Host.NotificationProviders.IChannelProvider, PlatformBase.Host.Services.SmtpChannelProvider>();
 
 // ═══════════════════ 后台任务调度 (Hangfire) ═══════════════════
 builder.Services.AddHangfireInfrastructure(dbProvider, connectionString);
@@ -207,6 +219,16 @@ var app = builder.Build();
 // ① 全局异常处理 — 管道最前端，捕获所有后续中间件的异常
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
+// ①¼ 请求日志 — 记录每个请求的路径/方法/耗时/状态码到 Serilog
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("TraceId", httpContext.TraceIdentifier);
+        diagnosticContext.Set("ClientIP", httpContext.Connection.RemoteIpAddress);
+    };
+});
+
 // ①½ 国际化请求本地化 — 解析 Accept-Language 头，设置 CultureInfo
 app.UseRequestLocalization();
 
@@ -253,5 +275,15 @@ await app.SeedAsync();
 
 // ═══════════════════ 后台任务同步（从 JobSchedules 表读取配置，注册到 Hangfire） ═══════════════════
 await app.UseHangfireSyncAsync();
+
+// ═══════════════════ 优雅关闭（等待 Hangfire 任务完成，释放资源） ═══════════════════
+var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+lifetime.ApplicationStopping.Register(() =>
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation("应用正在关闭，等待后台任务完成...");
+    Thread.Sleep(TimeSpan.FromSeconds(10));
+    logger.LogInformation("应用已关闭");
+});
 
 app.Run();

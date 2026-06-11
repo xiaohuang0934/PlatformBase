@@ -1,5 +1,34 @@
 # 部署指南 / Deployment Guide
 
+## ⚠️ 生产环境必须：EF Core Migration
+
+**开发环境：** 项目使用 `DataSeeder.EnsureCreatedAsync()` 自动建表，适配快速迭代。
+
+**生产环境：** **绝对禁止使用 `EnsureCreated`。** 原因：
+
+```
+v1.0: Users / Roles / Permissions 6 张表 → EnsureCreated ✅
+v1.1: 新增 4 张表 → EnsureCreated ❌ 失败！
+      表已存在，无法增量添加。只能删库重建 → 生产数据全部丢失。
+```
+
+**必须切换到 EF Core Migration：**
+
+```bash
+# 1. 安装工具
+dotnet tool install --global dotnet-ef
+
+# 2. 生成增量迁移脚本（每次加表/改表执行一次）
+dotnet ef migrations add AddNewModule --project src/PlatformBase.Infrastructure
+
+# 3. 执行迁移（部署时自动或手动执行）
+dotnet ef database update --project src/PlatformBase.Infrastructure
+```
+
+> **数据种子：** Migration 场景下 `EnsureCreatedAsync` 不会执行。需在迁移脚本中调用 `DataSeeder.SeedAsync`，或在应用启动时检查是否需要种子。
+
+---
+
 ## 生产环境准备 / Production Readiness Checklist
 
 | # | 检查项 / Item | 开发环境 | 生产环境 |

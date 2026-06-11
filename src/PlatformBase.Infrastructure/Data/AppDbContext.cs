@@ -291,6 +291,31 @@ public class AppDbContext : DbContext
                 entry.Entity.TenantId = tenantId ?? Guid.Empty;
             }
         }
+
+        // 审计：捕获数据变更快照
+        _changeSnapshot = CaptureChangeSnapshot();
+    }
+
+    /// <summary>当前请求的数据变更快照（由 OperationLogFilter 读取）</summary>
+    public string? ChangeSnapshot => _changeSnapshot;
+    private string? _changeSnapshot;
+
+    /// <summary>捕获 ChangeTracker 中所有修改的 Before/After JSON 快照</summary>
+    private string? CaptureChangeSnapshot()
+    {
+        var changes = ChangeTracker.Entries()
+            .Where(e => e.State is EntityState.Modified)
+            .Select(e => new
+            {
+                Entity = e.Entity.GetType().Name,
+                Changes = e.Properties.Where(p => p.IsModified && !p.Metadata.IsKey() && !p.Metadata.IsForeignKey())
+                    .ToDictionary(p => p.Metadata.Name, p => new { Old = p.OriginalValue, New = p.CurrentValue })
+            }).Where(x => x.Changes != null && x.Changes.Count > 0)
+            .ToList();
+
+        return changes.Count > 0
+            ? System.Text.Json.JsonSerializer.Serialize(changes)
+            : null;
     }
 
     /// <summary>

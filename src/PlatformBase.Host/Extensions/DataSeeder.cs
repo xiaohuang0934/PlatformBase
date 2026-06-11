@@ -280,7 +280,8 @@ public static class DataSeeder
         new() { Code = "refresh_token_days",  Name = "RefreshToken有效期(天)", Value = "30",             Category = "security", SortOrder = 4,  Description = "RefreshToken 的有效天数" },
         new() { Code = "enable_register",     Name = "开放注册",           Value = "true",              Category = "feature-toggle", SortOrder = 1,  Description = "是否允许新用户自行注册" },
         new() { Code = "enable_captcha",      Name = "验证码开关",         Value = "false",             Category = "feature-toggle", SortOrder = 2,  Description = "登录/注册时是否启用验证码校验" },
-        new() { Code = "maintenance_mode",    Name = "维护模式",           Value = "false",             Category = "feature-toggle", SortOrder = 3,  Description = "开启后仅管理员可访问系统" }
+        new() { Code = "maintenance_mode",    Name = "维护模式",           Value = "false",             Category = "feature-toggle", SortOrder = 3,  Description = "开启后仅管理员可访问系统" },
+        new() { Code = "smtp:default",        Name = "SMTP邮件配置",       Value = "{\"Host\":\"\",\"Port\":587,\"User\":\"\",\"Password\":\"\",\"From\":\"\"}", Category = "smtp", SortOrder = 1, Description = "SMTP 邮件服务器配置（JSON），为空则不发送邮件。支持多配置：smtp:alert/smtp:marketing" }
     ];
 
     /// <summary>初始化数据字典种子数据（幂等）</summary>
