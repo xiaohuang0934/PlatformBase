@@ -38,9 +38,12 @@ builder.Host.UseSerilog((context, config) =>
 
 // ═══════════════════ 健康检查（DB 连接） ═══════════════════
 builder.Services.AddHealthChecks();
-// 增强健康检查（需要 NuGet 包，生产环境按需安装）：
-// .AddDbContextCheck<AppDbContext>("DB")
-// .AddRedis(connectionString, "Redis")
+
+// ═══════════════════ 优雅关闭（Host 层级，不阻塞线程） ═══════════════════
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.ShutdownTimeout = TimeSpan.FromSeconds(15);
+});
 
 // ═══════════════════ 用户会话上下文（AppDbContext 依赖它，必须在 AddDatabase 之前注册） ═══════════════════
 builder.Services.AddHttpContextAccessor();
@@ -78,10 +81,11 @@ builder.Services.AddEventBus(typeof(ChannelEventBus).Assembly);
 builder.Services.AddSingleton<IFileStorageProvider, LocalFileStorageProvider>();
 builder.Services.AddScoped<IExportService, ImportExportService>();
 builder.Services.AddScoped<IImportService, ImportExportService>();
+builder.Services.AddScoped<ImportExportService>();
 builder.Services.AddSingleton<ILockService, RedisLockService>();
 builder.Services.AddSingleton<IIdGenerator, GuidIdGenerator>();
 builder.Services.AddSingleton<PlatformBase.Host.NotificationProviders.IChannelProvider, PlatformBase.Host.NotificationProviders.InAppChannelProvider>();
-builder.Services.AddSingleton<PlatformBase.Host.NotificationProviders.IChannelProvider, PlatformBase.Host.Services.SmtpChannelProvider>();
+builder.Services.AddSingleton<PlatformBase.Host.NotificationProviders.IChannelProvider, SmtpChannelProvider>();
 
 // ═══════════════════ 后台任务调度 (Hangfire) ═══════════════════
 builder.Services.AddHangfireInfrastructure(dbProvider, connectionString);
@@ -147,7 +151,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             context.Response.ContentType = "application/json";
             context.Response.StatusCode = 200;
-            var result = ApiResult.Fail(ErrorCode.Unauthorized, "认证失败，请重新登录");
+            var result = ApiResult.Fail(ErrorCode.Forbidden, "没有访问权限");
             await context.Response.WriteAsync(
                 System.Text.Json.JsonSerializer.Serialize(result,
                     new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
@@ -275,15 +279,5 @@ await app.SeedAsync();
 
 // ═══════════════════ 后台任务同步（从 JobSchedules 表读取配置，注册到 Hangfire） ═══════════════════
 await app.UseHangfireSyncAsync();
-
-// ═══════════════════ 优雅关闭（等待 Hangfire 任务完成，释放资源） ═══════════════════
-var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-lifetime.ApplicationStopping.Register(() =>
-{
-    var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("应用正在关闭，等待后台任务完成...");
-    Thread.Sleep(TimeSpan.FromSeconds(10));
-    logger.LogInformation("应用已关闭");
-});
 
 app.Run();

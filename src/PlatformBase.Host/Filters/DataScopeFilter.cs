@@ -1,23 +1,19 @@
 using Microsoft.AspNetCore.Mvc.Filters;
-using PlatformBase.Core.Repositories;
 using PlatformBase.Core.Services;
 
 namespace PlatformBase.Host.Filters;
 
 /// <summary>
-/// 数据权限 ActionFilter，实现部门行级过滤
-/// 支持用户 → 所属部门 → 物化路径查询所有子部门
+/// 数据权限 ActionFilter — 根据用户所属部门物化路径限制数据可见范围
+/// 当前为预留框架，平台管理员不过滤
 /// </summary>
 public class DataScopeFilter : IAsyncActionFilter
 {
     private readonly ICurrentUserService _currentUser;
-    private readonly IUnitOfWork _uow;
-    private static readonly string[] ScopeArgKeys = ["orgId", "departmentId", "orgIds", "scopeIds"];
 
-    public DataScopeFilter(ICurrentUserService currentUser, IUnitOfWork uow)
+    public DataScopeFilter(ICurrentUserService currentUser)
     {
         _currentUser = currentUser;
-        _uow = uow;
     }
 
     public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
@@ -26,16 +22,7 @@ public class DataScopeFilter : IAsyncActionFilter
             .OfType<DataScopeAttribute>().FirstOrDefault();
         if (attr == null) { await next(); return; }
 
-        // 平台管理员不过滤
-        if (_currentUser.IsSuperAdmin) { await next(); return; }
-
-        // 校验是否有部门归属
-        var user = _currentUser.UserId != null
-            ? await _uow.Repository<Core.Entities.User>().GetByIdAsync(_currentUser.UserId.Value)
-            : null;
-
-        // 简化：为当前逻辑，用户需通过其他方式关联部门
-        // 一期实现：如果请求参数中已有 scopeIds，则不做额外处理
+        // 平台管理员不过滤，后续可基于 OrganizationUnit.Path 实现行级过滤
         await next();
     }
 }

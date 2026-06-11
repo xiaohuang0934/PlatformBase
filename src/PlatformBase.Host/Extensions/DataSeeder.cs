@@ -28,7 +28,7 @@ public static class DataSeeder
         await SeedPermissionsAsync(uow, adminId);
         await SeedRolePermissionsAsync(uow, context, adminId);
         await SeedTestUserAsync(uow, context, adminId);
-        await SeedSystemParamsAsync(uow, adminId);
+        await SeedSystemParamsAsync(uow, context, adminId);
         await SeedDataDictAsync(uow, context, adminId);
         await SeedNotificationTemplatesAsync(uow, adminId);
         await SeedTenantsAsync(uow, context, adminId);
@@ -42,14 +42,14 @@ public static class DataSeeder
     /// <summary>创建 admin 用户并返回其 Id</summary>
     private static async Task<Guid> SeedAdminAsync(IUnitOfWork uow, AppDbContext context)
     {
-        var exists = await uow.Repository<User>()
-            .AnyAsync(u => u.NormalizedUsername == Norm("admin"));
-        if (exists)
-        {
-            var existing = await uow.Repository<User>()
-                .FirstOrDefaultAsync(u => u.NormalizedUsername == Norm("admin"));
-            return existing!.Id;
-        }
+        var existing = await uow.Repository<User>()
+            .FirstOrDefaultAsync(u => u.NormalizedUsername == Norm("admin"));
+        if (existing != null) return existing.Id;
+
+        // 软删除场景：检查是否被删除后需要恢复
+        var deleted = await context.Set<User>().IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.NormalizedUsername == Norm("admin") && u.IsDeleted);
+        if (deleted != null) return deleted.Id;
 
         var admin = new User
         {
@@ -256,10 +256,16 @@ public static class DataSeeder
     private static string Norm(string value) => (value ?? string.Empty).ToUpperInvariant();
 
     /// <summary>初始化系统参数种子数据（幂等）</summary>
-    private static async Task SeedSystemParamsAsync(IUnitOfWork uow, Guid createdBy)
+    private static async Task SeedSystemParamsAsync(IUnitOfWork uow, AppDbContext context, Guid createdBy)
     {
         var existingCodes = (await uow.Repository<SystemParam>().GetAllAsync())
             .Select(p => p.Code).ToHashSet();
+
+        // 检查已软删除的记录避免唯一约束冲突
+        var deletedCodes = await context.Set<SystemParam>().IgnoreQueryFilters()
+            .Where(p => p.IsDeleted)
+            .Select(p => p.Code).ToListAsync();
+        foreach (var code in deletedCodes) existingCodes.Add(code);
 
         foreach (var seed in GetSeedSystemParams())
         {
