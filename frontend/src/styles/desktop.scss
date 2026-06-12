@@ -1,0 +1,69 @@
+// ============================================================
+// 墨石 — PC 端全局样式
+// ============================================================
+
+.page-container {
+  padding: $spacing-xl;
+  background: $color-bg-card;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-lg;
+
+  &__title {
+    font-family: $font-display;
+    font-size: $font-size-xl;
+    font-weight: 600;
+    color: $color-text-primary;
+    letter-spacing: 0.02em;
+  }
+
+  &__subtitle {
+    font-size: $font-size-sm;
+    color: $color-text-secondary;
+    margin-top: $spacing-xs;
+  }
+
+  &__actions {
+    display: flex;
+    gap: $spacing-sm;
+  }
+}
+
+.search-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-base;
+  padding: $spacing-md;
+  margin-bottom: $spacing-lg;
+  background: $color-bg-card;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  .el-form-item {
+    margin-bottom: 0;
+  }
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-base;
+
+  &__left {
+    display: flex;
+    gap: $spacing-sm;
+  }
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: $spacing-lg;
+}

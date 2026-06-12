@@ -1,0 +1,203 @@
+/* ============================================================
+   墨石 (Inkstone) — 简洁但不简单的暗/亮双模设计令牌
+   中性灰阶 + 克制蓝强调。无辉光，用留白和光影说话。
+   ============================================================ */
+
+/* ──── 暗色模式（默认）──── */
+:root,
+[data-theme='dark'] {
+  /* 背景 — 中性暖黑阶 */
+  --color-bg-deep: #0d0d11;
+  --color-bg-base: #121215;
+  --color-bg-card: #18181c;
+  --color-bg-elevated: #1f1f24;
+  --color-bg-hover: #25252b;
+
+  /* 文字 — 微暖白阶 */
+  --color-text-primary: #ecedef;
+  --color-text-regular: #b4b6bd;
+  --color-text-secondary: #9b9da6;
+  --color-text-dim: #6f717b;
+  --color-text-placeholder: #4b4d58;
+
+  /* 主色 — 克制蓝 */
+  --color-primary: #4f8cf7;
+  --color-primary-rgb: 79, 140, 247;
+  --color-primary-dim: rgba(79, 140, 247, 0.08);
+  --color-primary-dark: #3a6fd8;
+
+  /* 语义色 */
+  --color-success: #3ecf8e;
+  --color-warning: #f0a030;
+  --color-danger: #e5484d;
+  --color-info: #4f8cf7;
+
+  /* 辅助色 */
+  --color-amber: #f0a030;
+  --color-amber-dim: rgba(240, 160, 48, 0.08);
+
+  /* 边框 — 冷灰透明 */
+  --color-border: rgba(255, 255, 255, 0.06);
+  --color-border-light: rgba(255, 255, 255, 0.04);
+  --color-border-accent: rgba(79, 140, 247, 0.25);
+  --color-border-focus: rgba(79, 140, 247, 0.45);
+
+  /* 侧边栏 */
+  --sidebar-bg: #0f0f13;
+  --sidebar-border: rgba(255, 255, 255, 0.05);
+  --sidebar-item-hover: rgba(255, 255, 255, 0.03);
+  --sidebar-item-active: rgba(79, 140, 247, 0.08);
+  --sidebar-text: #9b9da6;
+  --sidebar-text-hover: #c4c6cc;
+  --sidebar-text-active: #4f8cf7;
+
+  /* 顶栏 */
+  --header-height: 56px;
+  --header-bg: rgba(13, 13, 17, 0.88);
+  --header-border: rgba(255, 255, 255, 0.05);
+
+  /* 移动 */
+  --tabbar-height: 56px;
+  --navbar-height: 48px;
+  --tabbar-bg: rgba(18, 18, 21, 0.94);
+
+  /* 卡片面板 */
+  --card-bg-alpha: rgba(24, 24, 28, 0.7);
+  --card-border-alpha: rgba(255, 255, 255, 0.04);
+  --card-hover-border: rgba(79, 140, 247, 0.18);
+  --card-hover-shadow: rgba(0, 0, 0, 0.1);
+
+  /* 阴影 — 精准灰阶光影 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.12);
+  --shadow-base: 0 2px 8px rgba(0, 0, 0, 0.18);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.25);
+
+  /* ──── Element Plus 暗色 ──── */
+  --el-color-primary: #4f8cf7;
+  --el-color-primary-light-3: #6ba0f8;
+  --el-color-primary-light-5: #88b4fa;
+  --el-color-primary-light-7: #a5c8fb;
+  --el-color-primary-light-8: #b8d3fc;
+  --el-color-primary-light-9: #ccdffd;
+  --el-color-primary-dark-2: #3a6fd8;
+
+  --el-color-success: #3ecf8e;
+  --el-color-warning: #f0a030;
+  --el-color-danger: #e5484d;
+  --el-color-info: #4f8cf7;
+
+  --el-bg-color: #121215;
+  --el-bg-color-overlay: #18181c;
+  --el-bg-color-page: #0d0d11;
+
+  --el-text-color-primary: #ecedef;
+  --el-text-color-regular: #b4b6bd;
+  --el-text-color-secondary: #9b9da6;
+  --el-text-color-placeholder: #4b4d58;
+  --el-text-color-disabled: #4b4d58;
+
+  --el-border-color: rgba(255, 255, 255, 0.06);
+  --el-border-color-light: rgba(255, 255, 255, 0.04);
+  --el-border-color-lighter: rgba(255, 255, 255, 0.03);
+  --el-border-color-extra-light: rgba(255, 255, 255, 0.03);
+  --el-border-color-dark: rgba(255, 255, 255, 0.1);
+
+  --el-fill-color: #18181c;
+  --el-fill-color-light: #1f1f24;
+  --el-fill-color-lighter: #25252b;
+  --el-fill-color-blank: #0d0d11;
+
+  --el-mask-color: rgba(0, 0, 0, 0.7);
+}
+
+/* ──── 亮色模式 ──── */
+[data-theme='light'] {
+  --color-bg-deep: #f6f6f8;
+  --color-bg-base: #fcfcfd;
+  --color-bg-card: #ffffff;
+  --color-bg-elevated: #f0f0f3;
+  --color-bg-hover: #e8e8ed;
+
+  --color-text-primary: #18181b;
+  --color-text-regular: #52525b;
+  --color-text-secondary: #71717a;
+  --color-text-dim: #a1a1aa;
+  --color-text-placeholder: #b8b8c0;
+
+  --color-primary: #3b78e7;
+  --color-primary-rgb: 59, 120, 231;
+  --color-primary-dim: rgba(59, 120, 231, 0.06);
+  --color-primary-dark: #2d62c4;
+
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #3b78e7;
+
+  --color-amber: #d97706;
+  --color-amber-dim: rgba(217, 119, 6, 0.06);
+
+  --color-border: rgba(0, 0, 0, 0.06);
+  --color-border-light: rgba(0, 0, 0, 0.04);
+  --color-border-accent: rgba(59, 120, 231, 0.22);
+  --color-border-focus: rgba(59, 120, 231, 0.45);
+
+  --sidebar-bg: #f0f0f3;
+  --sidebar-border: rgba(0, 0, 0, 0.05);
+  --sidebar-item-hover: rgba(0, 0, 0, 0.03);
+  --sidebar-item-active: rgba(59, 120, 231, 0.06);
+  --sidebar-text: #71717a;
+  --sidebar-text-hover: #18181b;
+  --sidebar-text-active: #3b78e7;
+
+  --header-bg: rgba(252, 252, 253, 0.92);
+  --header-border: rgba(0, 0, 0, 0.05);
+
+  --tabbar-bg: rgba(252, 252, 253, 0.94);
+
+  --card-bg-alpha: rgba(255, 255, 255, 0.85);
+  --card-border-alpha: rgba(0, 0, 0, 0.05);
+  --card-hover-border: rgba(59, 120, 231, 0.2);
+  --card-hover-shadow: rgba(0, 0, 0, 0.04);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-base: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
+
+  /* ──── Element Plus 亮色 ──── */
+  --el-color-primary: #3b78e7;
+  --el-color-primary-light-3: #5e92ec;
+  --el-color-primary-light-5: #82acf0;
+  --el-color-primary-light-7: #a6c6f5;
+  --el-color-primary-light-8: #bbd3f7;
+  --el-color-primary-light-9: #d1e0fa;
+  --el-color-primary-dark-2: #2d62c4;
+
+  --el-color-success: #16a34a;
+  --el-color-warning: #d97706;
+  --el-color-danger: #dc2626;
+  --el-color-info: #3b78e7;
+
+  --el-bg-color: #fcfcfd;
+  --el-bg-color-overlay: #ffffff;
+  --el-bg-color-page: #f6f6f8;
+
+  --el-text-color-primary: #18181b;
+  --el-text-color-regular: #52525b;
+  --el-text-color-secondary: #71717a;
+  --el-text-color-placeholder: #b8b8c0;
+  --el-text-color-disabled: #c8c8d0;
+
+  --el-border-color: rgba(0, 0, 0, 0.06);
+  --el-border-color-light: rgba(0, 0, 0, 0.04);
+  --el-border-color-lighter: rgba(0, 0, 0, 0.03);
+  --el-border-color-extra-light: rgba(0, 0, 0, 0.02);
+  --el-border-color-dark: rgba(0, 0, 0, 0.12);
+
+  --el-fill-color: #f0f0f3;
+  --el-fill-color-light: #f6f6f8;
+  --el-fill-color-lighter: #fcfcfd;
+  --el-fill-color-blank: #ffffff;
+
+  --el-mask-color: rgba(0, 0, 0, 0.4);
+}

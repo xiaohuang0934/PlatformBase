@@ -258,6 +258,7 @@ public class UserService : IUserService
                 EmailConfirmed = u.EmailConfirmed,
                 PhoneNumber = u.PhoneNumber,
                 IsActive = u.IsActive,
+                UserType = u.UserType,
                 Roles = roleNames,
                 CreatedAt = u.CreatedAt,
                 UpdatedAt = u.UpdatedAt

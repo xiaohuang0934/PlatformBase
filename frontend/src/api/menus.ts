@@ -1,0 +1,45 @@
+import type { ApiResult } from '@/types/api-result'
+import type { MenuDto } from '@/types/auth'
+import http from './index'
+
+/** 获取当前用户可访问的菜单树（已按权限裁剪） */
+export function getMenuTree(): Promise<ApiResult<MenuDto[]>> {
+  return http.get('/menus/tree').then(res => res.data)
+}
+
+/** 获取全部菜单列表（管理用） */
+export function getMenuList(): Promise<ApiResult<MenuDto[]>> {
+  return http.get('/menus').then(res => res.data)
+}
+
+export function getMenuById(id: string): Promise<ApiResult<MenuDto>> {
+  return http.get(`/menus/${id}`).then(res => res.data)
+}
+
+export function createMenu(data: {
+  name: string
+  type: number
+  parentId?: string
+  path?: string
+  icon?: string
+  permissionCode?: string
+  sortOrder?: number
+  isVisible?: boolean
+}): Promise<ApiResult<MenuDto>> {
+  return http.post('/menus', data).then(res => res.data)
+}
+
+export function updateMenu(id: string, data: {
+  name?: string
+  icon?: string
+  path?: string
+  permissionCode?: string
+  sortOrder?: number
+  isVisible?: boolean
+}): Promise<ApiResult<null>> {
+  return http.put(`/menus/${id}`, data).then(res => res.data)
+}
+
+export function deleteMenu(id: string): Promise<ApiResult<null>> {
+  return http.delete(`/menus/${id}`).then(res => res.data)
+}

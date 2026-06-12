@@ -68,7 +68,7 @@ public class OperationLogFilter : IAsyncActionFilter
         var entry = new OperationLogEntry
         {
             UserId = _currentUser.UserId,
-            Username = _currentUser.UserName,
+            Username = _currentUser.UserName ?? ExtractUsernameFromArgs(context, attr),
             Action = attr.Action,
             Resource = resource,
             Detail = detail,
@@ -78,5 +78,26 @@ public class OperationLogFilter : IAsyncActionFilter
         };
 
         Hangfire.BackgroundJob.Enqueue<OperationLogWriterJob>(job => job.WriteAsync(entry, CancellationToken.None));
+    }
+
+    /// <summary>
+    /// 从未认证的请求体中提取用户名（用于登录/刷新等匿名操作的日志记录）
+    /// </summary>
+    private static string? ExtractUsernameFromArgs(ActionExecutingContext context, OperationLogAttribute attr)
+    {
+        if (attr.Action != "login" && attr.Action != "refresh")
+            return null;
+
+        foreach (var arg in context.ActionArguments.Values)
+        {
+            if (arg == null) continue;
+            var prop = arg.GetType().GetProperty("Username");
+            if (prop != null)
+            {
+                var val = prop.GetValue(arg) as string;
+                if (!string.IsNullOrWhiteSpace(val)) return val;
+            }
+        }
+        return null;
     }
 }

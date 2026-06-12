@@ -1,0 +1,103 @@
+// ============================================================
+// 曜石 — 移动端全局样式（CSS 属性驱动）
+// ============================================================
+
+.m-page {
+  min-height: 100%;
+  padding-bottom: calc($tabbar-height + $spacing-lg + env(safe-area-inset-bottom));
+  background-color: $color-bg-deep;
+}
+
+.m-page-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  height: $navbar-height;
+  padding: 0 $spacing-md;
+  background: $header-bg;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid $header-border;
+
+  &__back {
+    margin-right: $spacing-sm;
+    color: $color-text-secondary;
+    &:active {
+      color: $color-primary;
+    }
+  }
+
+  &__title {
+    flex: 1;
+    font-family: $font-display;
+    font-size: $font-size-lg;
+    font-weight: 600;
+    color: $color-text-primary;
+  }
+}
+
+.m-card-list {
+  padding: $spacing-sm $spacing-base;
+
+  &__item {
+    margin-bottom: $spacing-sm;
+    padding: $spacing-md;
+    background: $color-bg-card;
+    border: 1px solid $card-border-alpha;
+    border-radius: $radius-md;
+    transition: border-color $transition-fast;
+
+    &:active {
+      border-color: $color-border-accent;
+    }
+  }
+}
+
+.m-bottom-action {
+  position: fixed;
+  bottom: $tabbar-height;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  padding: $spacing-sm $spacing-md;
+  padding-bottom: calc($spacing-sm + env(safe-area-inset-bottom));
+  background: $color-bg-card;
+  border-top: 1px solid $header-border;
+
+  .van-button {
+    width: 100%;
+  }
+}
+
+.m-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: $spacing-xl;
+  color: $color-text-dim;
+
+  &__icon {
+    font-size: 48px;
+    margin-bottom: $spacing-base;
+    opacity: 0.4;
+  }
+  &__text {
+    font-size: $font-size-md;
+  }
+}
+
+@media (max-width: $breakpoint-mobile - 1px) {
+  .pc-only {
+    display: none !important;
+  }
+}
+
+@media (min-width: $breakpoint-mobile) {
+  .mobile-only {
+    display: none !important;
+  }
+}

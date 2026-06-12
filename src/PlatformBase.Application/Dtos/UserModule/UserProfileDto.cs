@@ -1,3 +1,5 @@
+using PlatformBase.Core.Entities;
+
 namespace PlatformBase.Application.Dtos.UserModule;
 
 /// <summary>
@@ -31,4 +33,7 @@ public class UserProfileDto
 
     /// <summary>最后修改时间</summary>
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>用户类型</summary>
+    public UserType UserType { get; set; }
 }

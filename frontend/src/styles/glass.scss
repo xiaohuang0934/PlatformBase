@@ -1,0 +1,30 @@
+// ============================================================
+// 墨石 效果库 — 克制光影，用留白和层次说话
+// ============================================================
+
+.glass-panel {
+  background: $card-bg-alpha;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+}
+
+.glass-panel--hover {
+  transition:
+    transform $transition-base,
+    box-shadow $transition-base,
+    border-color $transition-base;
+  &:hover {
+    transform: translateY(-1px);
+    border-color: $color-border-accent;
+    box-shadow: $shadow-base;
+  }
+}
+
+// --- 点阵网格背景（仅登录页使用） ---
+.grid-bg {
+  background-color: $color-bg-deep;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

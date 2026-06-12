@@ -88,6 +88,7 @@ public class AuthController : ControllerBase
             EmailConfirmed = user.EmailConfirmed,
             PhoneNumber = user.PhoneNumber,
             IsActive = user.IsActive,
+            UserType = user.UserType,
             Roles = roles,
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt

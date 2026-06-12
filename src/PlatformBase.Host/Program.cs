@@ -62,6 +62,9 @@ builder.Services.AddControllers(options =>
     options.Filters.Add<PlatformBase.Host.Filters.OperationLogFilter>();
     options.Filters.Add<PlatformBase.Host.Filters.RateLimitFilter>();
     options.Filters.Add<PlatformBase.Host.Filters.DataScopeFilter>();
+}).AddJsonOptions(opt =>
+{
+    opt.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
 });
 builder.Services.AddEndpointsApiExplorer();
 
