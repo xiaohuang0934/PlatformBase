@@ -42,7 +42,8 @@ public class RoleService : IRoleService
             .AppendIf(accessibleIds.Count > 0 && !_currentUser.IsSuperAdmin,
                 r => r.TenantId != null && accessibleIds.Contains(r.TenantId.Value))
             .AppendIf(accessibleIds.Count == 0 && !_currentUser.IsSuperAdmin, r => false)
-            .AppendIf(!string.IsNullOrWhiteSpace(kw), r => r.NormalizedName.Contains(kw!));
+            .AppendIf(!string.IsNullOrWhiteSpace(kw), r => r.NormalizedName.Contains(kw!))
+            .AppendIf(query.IsSystem.HasValue, r => r.IsSystem == query.IsSystem.Value);
 
         var result = await _uow.Repository<Role>().GetPagedAsync(new PagedRequest
         {
@@ -71,6 +72,7 @@ public class RoleService : IRoleService
         var role = new Role
         {
             Name = dto.Name,
+            Code = dto.Code,
             NormalizedName = normalized,
             Description = dto.Description,
             TenantId = _currentUser.TenantId
@@ -187,7 +189,9 @@ public class RoleService : IRoleService
     {
         Id = entity.Id,
         Name = entity.Name,
+        Code = entity.Code,
         Description = entity.Description,
+        IsSystem = entity.IsSystem,
         CreatedAt = entity.CreatedAt,
         UpdatedAt = entity.UpdatedAt
     };

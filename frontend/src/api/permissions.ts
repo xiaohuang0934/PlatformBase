@@ -12,11 +12,11 @@ export function getPermissionById(id: string): Promise<ApiResult<PermissionDto>>
   return http.get(`${BASE}/${id}`).then(res => res.data)
 }
 
-export function createPermission(data: { name: string, code: string, group?: string, description?: string }): Promise<ApiResult<PermissionDto>> {
+export function createPermission(data: { name: string, code: string, resourcePath: string, httpMethod: string, group?: string, description?: string }): Promise<ApiResult<PermissionDto>> {
   return http.post(BASE, data).then(res => res.data)
 }
 
-export function updatePermission(id: string, data: { name?: string, code?: string, group?: string, description?: string }): Promise<ApiResult<null>> {
+export function updatePermission(id: string, data: { name?: string, group?: string, description?: string }): Promise<ApiResult<null>> {
   return http.put(`${BASE}/${id}`, data).then(res => res.data)
 }
 

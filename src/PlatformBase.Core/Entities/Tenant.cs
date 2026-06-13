@@ -16,4 +16,6 @@ public class Tenant : AuditableEntity
 
     /// <summary>是否启用</summary>
     public bool IsEnabled { get; set; } = true;
+
+    public string? Description { get; set; }
 }

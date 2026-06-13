@@ -48,19 +48,19 @@ const dialogTitle = ref('新增权限')
 const isEditing = ref(false)
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
-const form = reactive({ id: '', name: '', code: '', group: '', description: '' })
-const formRules: FormRules = { name: [{ required: true, message: '请输入权限名称', trigger: 'blur' }], code: [{ required: true, message: '请输入权限编码', trigger: 'blur' }] }
+const form = reactive({ id: '', name: '', code: '', resourcePath: '', httpMethod: 'GET', group: '', description: '' })
+const formRules: FormRules = { name: [{ required: true, message: '请输入权限名称', trigger: 'blur' }], code: [{ required: true, message: '请输入权限编码', trigger: 'blur' }], resourcePath: [{ required: true, message: '请输入接口路径', trigger: 'blur' }], httpMethod: [{ required: true, message: '请选择HTTP方法', trigger: 'blur' }] }
 
-function openCreate() { isEditing.value = false; dialogTitle.value = '新增权限'; Object.assign(form, { id: '', name: '', code: '', group: '', description: '' }); dialogVisible.value = true }
-function openEdit(row: PermissionDto) { isEditing.value = true; dialogTitle.value = '编辑权限'; Object.assign(form, { id: row.id, name: row.name, code: row.code, group: row.group || '', description: row.description || '' }); dialogVisible.value = true }
+function openCreate() { isEditing.value = false; dialogTitle.value = '新增权限'; Object.assign(form, { id: '', name: '', code: '', resourcePath: '', httpMethod: 'GET', group: '', description: '' }); dialogVisible.value = true }
+function openEdit(row: any) { isEditing.value = true; dialogTitle.value = '编辑权限'; Object.assign(form, { id: row.id, name: row.name, code: row.code, resourcePath: row.resourcePath || '', httpMethod: row.httpMethod || 'GET', group: row.groupName || row.group || '', description: row.description || '' }); dialogVisible.value = true }
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid)
     return; submitting.value = true
   try {
-    if (isEditing.value) { await permApi.updatePermission(form.id, { name: form.name, code: form.code, group: form.group || undefined, description: form.description || undefined }); ElMessage.success('更新成功') }
-    else { await permApi.createPermission({ name: form.name, code: form.code, group: form.group || undefined, description: form.description || undefined }); ElMessage.success('创建成功') }
+    if (isEditing.value) { await permApi.updatePermission(form.id, { name: form.name, group: form.group || undefined, description: form.description || undefined }); ElMessage.success('更新成功') }
+    else { await permApi.createPermission({ name: form.name, code: form.code, resourcePath: form.resourcePath, httpMethod: form.httpMethod, group: form.group || undefined, description: form.description || undefined }); ElMessage.success('创建成功') }
     dialogVisible.value = false; fetchList()
   }
   catch {
@@ -139,6 +139,18 @@ onMounted(fetchList)
       </el-form-item>
       <el-form-item label="编码" prop="code">
         <el-input v-model="form.code" :disabled="isEditing" placeholder="请输入权限编码" />
+      </el-form-item>
+      <el-form-item v-if="!isEditing" label="接口路径" prop="resourcePath">
+        <el-input v-model="form.resourcePath" placeholder="/api/v1/users" />
+      </el-form-item>
+      <el-form-item v-if="!isEditing" label="HTTP方法" prop="httpMethod">
+        <el-select v-model="form.httpMethod" placeholder="请选择" style="width:100%">
+          <el-option label="GET" value="GET" />
+          <el-option label="POST" value="POST" />
+          <el-option label="PUT" value="PUT" />
+          <el-option label="DELETE" value="DELETE" />
+          <el-option label="PATCH" value="PATCH" />
+        </el-select>
       </el-form-item>
       <el-form-item label="分组">
         <el-input v-model="form.group" placeholder="如 users / roles" />

@@ -31,9 +31,9 @@
 
 | 方法 | 端点 | 权限 | 说明 |
 |------|------|------|------|
-| `GET` | `/roles` | `roles.list` | 分页列表 |
-| `GET` | `/roles/{id}` | `roles.list` | 详情 |
-| `POST` | `/roles` | `roles.create` | 创建 |
+| `GET` | `/roles?keyword=&isSystem=` | `roles.list` | 分页列表（支持 isSystem 筛选，返回 code/isSystem 字段） |
+| `GET` | `/roles/{id}` | `roles.list` | 详情（含 code/isSystem） |
+| `POST` | `/roles` | `roles.create` | 创建（code 必填） |
 | `PUT` | `/roles/{id}` | `roles.edit` | 更新 |
 | `DELETE` | `/roles/{id}` | `roles.delete` | 删除（有关联用户则拒绝） |
 | `GET` | `/roles/{id}/permissions` | `roles.list` | 查看权限编码列表 |
@@ -100,7 +100,7 @@
 | 方法 | 端点 | 权限 | 说明 |
 |------|------|------|------|
 | `GET` | `/menus/tree` | Authorize | 当前用户可访问的菜单树（自动裁剪） |
-| `GET` | `/menus` | `menus.list` | 全部菜单列表 |
+| `GET` | `/menus` | `menus.list` | 全部菜单列表（可选 `?parentId=` 按父级筛选） |
 | `GET` | `/menus/{id}` | `menus.list` | 详情 |
 | `POST` | `/menus` | `menus.create` | 创建 |
 | `PUT` | `/menus/{id}` | `menus.edit` | 更新 |
@@ -120,9 +120,9 @@
 
 | 方法 | 端点 | 权限 | 说明 |
 |------|------|------|------|
-| `GET` | `/tenants` | `tenants.list` | 分页列表 |
+| `GET` | `/tenants?keyword=&isEnabled=&sortField=&isAscending=` | `tenants.list` | 分页列表（支持 keyword/IsEnabled 筛选 + 排序） |
 | `GET` | `/tenants/{id}` | `tenants.list` | 详情 |
-| `POST` | `/tenants` | `tenants.create` | 创建 |
+| `POST` | `/tenants` | `tenants.create` | 创建（含 Description） |
 | `PUT` | `/tenants/{id}` | `tenants.edit` | 更新 |
 | `DELETE` | `/tenants/{id}` | `tenants.delete` | 停用 |
 | `GET` | `/tenants/{tid}/platform-users` | `tenants.edit` | 查看租户的平台账号 |

@@ -9,9 +9,15 @@ public partial class Role : AuditableEntity
     /// <summary>角色名称，全局唯一（如：Admin / Manager / User）</summary>
     public string Name { get; set; } = string.Empty;
 
+    /// <summary>角色编码，全局唯一（如：admin / manager）</summary>
+    public string Code { get; set; } = string.Empty;
+
     /// <summary>规范化角色名（大写），用于大小写不敏感的快速查找</summary>
     public string NormalizedName { get; set; } = string.Empty;
 
     /// <summary>角色描述</summary>
     public string? Description { get; set; }
+
+    /// <summary>是否系统内置角色</summary>
+    public bool IsSystem { get; set; }
 }

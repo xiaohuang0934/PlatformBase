@@ -26,6 +26,7 @@ public class TenantsController : ControllerBase
     public async Task<ApiResult<object>> GetPaged(
         [FromQuery] string? keyword, [FromQuery] bool? isEnabled,
         [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10,
+        [FromQuery] string? sortField = null, [FromQuery] bool isAscending = true,
         CancellationToken ct = default)
     {
         var result = await _service.GetPagedAsync(keyword, isEnabled, pageIndex, pageSize, ct: ct);

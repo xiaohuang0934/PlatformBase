@@ -23,7 +23,7 @@ const showForm = ref(false); const form = reactive({ code: '', value: '', catego
 function openCreate() { Object.assign(form, { code: '', value: '', category: '', description: '' }); showForm.value = true }
 async function handleCreate() {
   if (!form.code)
-    return; submitting.value = true; try { await paramApi.createParam({ code: form.code, value: form.value, category: form.category || undefined, description: form.description || undefined }); ElMessage.success('创建成功'); showForm.value = false; pageIndex.value = 1; list.value = []; fetchList() }
+    return; submitting.value = true; try { await paramApi.createParam({ name: form.name, code: form.code, value: form.value, category: form.category || undefined, description: form.description || undefined }); ElMessage.success('创建成功'); showForm.value = false; pageIndex.value = 1; list.value = []; fetchList() }
   catch { ElMessage.error('操作失败') }
   finally { submitting.value = false }
 }

@@ -28,21 +28,21 @@ function onReset() { query.keyword = ''; query.pageIndex = 1; fetchList() }
 const dialogVisible = ref(false)
 const isEditing = ref(false)
 const formRef = ref<FormInstance>()
-const form = reactive({ id: '', code: '', value: '', category: '', description: '' })
+const form = reactive({ id: '', code: '', name: '', value: '', category: '', description: '' })
 const submitting = ref(false)
 const formRules: FormRules = {
   code: [{ required: true, message: '请输入编码', trigger: 'blur' }],
   value: [{ required: true, message: '请输入值', trigger: 'blur' }],
 }
 
-function openCreate() { isEditing.value = false; Object.assign(form, { id: '', code: '', value: '', category: '', description: '' }); dialogVisible.value = true }
+function openCreate() { isEditing.value = false; Object.assign(form, { id: '', code: '', name: '', value: '', category: '', description: '' }); dialogVisible.value = true }
 function openEdit(row: any) { isEditing.value = true; Object.assign(form, { id: row.id, code: row.code, value: row.value, category: row.category || '', description: row.description || '' }); dialogVisible.value = true }
 
 async function handleSubmit() {
   submitting.value = true
   try {
     if (isEditing.value) { await paramApi.updateParam(form.id, { value: form.value, description: form.description || undefined }); ElMessage.success('更新成功') }
-    else { await paramApi.createParam({ code: form.code, value: form.value, category: form.category || undefined, description: form.description || undefined }); ElMessage.success('创建成功') }
+    else { await paramApi.createParam({ name: form.name, code: form.code, value: form.value, category: form.category || undefined, description: form.description || undefined }); ElMessage.success('创建成功') }
     dialogVisible.value = false; fetchList()
   }
   catch {

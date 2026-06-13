@@ -24,7 +24,7 @@ const showForm = ref(false); const form = reactive({ name: '', code: '', group: 
 function openCreate() { Object.assign(form, { name: '', code: '', group: '', description: '' }); showForm.value = true }
 async function handleCreate() {
   if (!form.name || !form.code)
-    return; submitting.value = true; try { await permApi.createPermission({ name: form.name, code: form.code, group: form.group || undefined, description: form.description || undefined }); ElMessage.success('创建成功'); showForm.value = false; pageIndex.value = 1; list.value = []; fetchList() }
+    return; submitting.value = true; try { await permApi.createPermission({ name: form.name, code: form.code, resourcePath: form.resourcePath, httpMethod: form.httpMethod, group: form.group || undefined, description: form.description || undefined }); ElMessage.success('创建成功'); showForm.value = false; pageIndex.value = 1; list.value = []; fetchList() }
   catch { ElMessage.error('操作失败') }
   finally { submitting.value = false }
 }

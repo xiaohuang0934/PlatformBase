@@ -7,4 +7,6 @@ namespace PlatformBase.Application.Dtos.RoleModule;
 /// </summary>
 public class RoleQuery : PagedRequest
 {
+    /// <summary>是否系统角色</summary>
+    public bool? IsSystem { get; set; }
 }

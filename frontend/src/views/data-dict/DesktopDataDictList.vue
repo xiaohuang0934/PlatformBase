@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, Delete, Edit, Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { reactive, ref } from 'vue'
 import * as dictApi from '@/api/data-dict'
 import { useAuthStore } from '@/stores/auth'
@@ -16,14 +17,50 @@ async function fetchTypes() {
   try {
     const res = await dictApi.getDictTypes({ keyword: query.keyword || undefined, pageIndex: query.pageIndex, pageSize: query.pageSize })
     typeList.value = res.data.items ?? []; total.value = res.data.totalCount ?? 0
-  }
-  catch {
-    ElMessage.error('加载失败，请重试')
-  }
+  } catch { ElMessage.error('加载失败，请重试') }
   finally { loading.value = false }
 }
 function onPageChange(p: number) { query.pageIndex = p; fetchTypes() }
-onMounted(fetchTypes)
+
+// --- 类型 CRUD ---
+const typeDialog = ref(false); const isTypeEdit = ref(false)
+const typeFormRef = ref<FormInstance>()
+const typeForm = reactive({ id: '', typeName: '', typeCode: '', description: '' })
+const typeSubmitting = ref(false)
+const typeRules: FormRules = { typeName: [{ required: true }], typeCode: [{ required: true }] }
+
+function openTypeCreate() { isTypeEdit.value = false; Object.assign(typeForm, { id: '', typeName: '', typeCode: '', description: '' }); typeDialog.value = true }
+function openTypeEdit(row: any) { isTypeEdit.value = true; Object.assign(typeForm, { id: row.id, typeName: row.typeName, typeCode: row.typeCode, description: row.description || '' }); typeDialog.value = true }
+async function handleTypeSubmit() {
+  const valid = await typeFormRef.value?.validate().catch(() => false)
+  if (!valid) return; typeSubmitting.value = true
+  try { if (isTypeEdit.value) { await dictApi.updateDictType(typeForm.id, { typeName: typeForm.typeName, description: typeForm.description || undefined }); ElMessage.success('更新成功') } else { await dictApi.createDictType({ typeName: typeForm.typeName, typeCode: typeForm.typeCode, description: typeForm.description || undefined }); ElMessage.success('创建成功') }; typeDialog.value = false; fetchTypes() }
+  catch { ElMessage.error('操作失败') } finally { typeSubmitting.value = false }
+}
+async function handleTypeDelete(row: any) { try { await ElMessageBox.confirm(`确定删除 "${row.typeName}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) } catch { return }; await dictApi.deleteDictType(row.id); ElMessage.success('已删除'); fetchTypes() }
+
+// --- 字典项 ---
+const showItems = ref(false); const currentType = ref<any>(null); const itemList = ref<any[]>([])
+async function openItems(row: any) { currentType.value = row; showItems.value = true; await fetchItems() }
+function backToTypes() { showItems.value = false; currentType.value = null }
+async function fetchItems() { const res = await dictApi.getDictItems(currentType.value.id); itemList.value = res.data ?? [] }
+
+const itemDialog = ref(false); const isItemEdit = ref(false)
+const itemFormRef = ref<FormInstance>()
+const itemForm = reactive({ id: '', itemName: '', itemCode: '', itemValue: '', sortOrder: 100, parentId: '' as string | undefined })
+const itemSubmitting = ref(false)
+const itemRules: FormRules = { itemName: [{ required: true }], itemCode: [{ required: true }] }
+const parentItemOptions = computed(() => itemList.value.map((m: any) => ({ label: m.itemName, value: m.id })))
+
+function openItemCreate() { isItemEdit.value = false; Object.assign(itemForm, { id: '', itemName: '', itemCode: '', itemValue: '', sortOrder: 100, parentId: undefined }); itemDialog.value = true }
+function openItemEdit(row: any) { isItemEdit.value = true; Object.assign(itemForm, { id: row.id, itemName: row.itemName, itemCode: row.itemCode, itemValue: row.itemValue || '', sortOrder: row.sortOrder ?? 100, parentId: row.parentId || undefined }); itemDialog.value = true }
+async function handleItemSubmit() {
+  const valid = await itemFormRef.value?.validate().catch(() => false)
+  if (!valid) return; itemSubmitting.value = true
+  try { if (isItemEdit.value) { await dictApi.updateDictItem(itemForm.id, { itemName: itemForm.itemName, itemCode: itemForm.itemCode, itemValue: itemForm.itemValue || undefined, sortOrder: itemForm.sortOrder }); ElMessage.success('更新成功') } else { await dictApi.createDictItem({ dictTypeId: currentType.value.id, itemName: itemForm.itemName, itemCode: itemForm.itemCode, itemValue: itemForm.itemValue || undefined, sortOrder: itemForm.sortOrder, parentId: itemForm.parentId || undefined }); ElMessage.success('创建成功') }; itemDialog.value = false; fetchItems() }
+  catch { ElMessage.error('操作失败') } finally { itemSubmitting.value = false }
+}
+async function handleItemDelete(row: any) { try { await ElMessageBox.confirm(`确定删除 "${row.itemName}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) } catch { return }; await dictApi.deleteDictItem(row.id); ElMessage.success('已删除'); fetchItems() }
 </script>
 
 <template>

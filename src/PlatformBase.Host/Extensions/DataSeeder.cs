@@ -72,14 +72,16 @@ public static class DataSeeder
         var existing = await uow.Repository<Role>().GetAllAsync();
         var existingNames = existing.Select(r => r.NormalizedName).ToHashSet();
 
-        foreach (var (name, desc) in GetSeedRoles())
+        foreach (var (name, code, desc, isSystem) in GetSeedRoles())
         {
             if (existingNames.Contains(Norm(name))) continue;
             await uow.Repository<Role>().AddAsync(new Role
             {
                 Name = name,
+                Code = code,
                 NormalizedName = Norm(name),
                 Description = desc,
+                IsSystem = isSystem,
                 CreatedBy = createdBy
             });
         }
@@ -184,11 +186,11 @@ public static class DataSeeder
 
     // ═══════════════════ 种子数据定义 ═══════════════════
 
-    private static (string Name, string Description)[] GetSeedRoles() =>
+    private static (string Name, string Code, string Description, bool IsSystem)[] GetSeedRoles() =>
     [
-        ("Admin", "系统管理员 — 拥有全部权限"),
-        ("Manager", "业务管理员 — 用户和角色查看"),
-        ("User", "普通用户 — 最小权限")
+        ("Admin", "admin", "系统管理员 — 拥有全部权限", true),
+        ("Manager", "manager", "业务管理员 — 用户和角色查看", true),
+        ("User", "user", "普通用户 — 最小权限", true)
     ];
 
     private static Permission[] GetSeedPermissions() =>

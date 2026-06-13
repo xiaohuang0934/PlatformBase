@@ -1,5 +1,37 @@
 # 变更日志 / Changelog
 
+## v1.7 — 前端全模块 + 后端查询参数补全 + Bug 修复 (2026-06-13)
+
+### 新增
+
+- **前端全模块开发** — Vue3+TS 83 源文件，14 个业务模块完整 PC 端 + 移动端 CRUD
+- **墨石 (Inkstone) 设计系统** — 暗/亮双模 120+ CSS 令牌，WCAG AA 对比度达标
+- **移动端全模块** — 钻取式菜单、抽屉导航、卡片列表、FAB+action-sheet CRUD、van-list 滚动加载
+- **Tabler Icons 迁移** — 18 个图标从 Element Plus 迁移至 @tabler/icons-vue
+- **JWT 自动刷新** — axios 拦截器 + 请求队列防并发 + localStorage 持久化
+
+### 修复
+
+- **角色模块** — 新增 Code/IsSystem 字段，isSystem 筛选器从静默失效修复为可用
+- **权限模块** — 创建表单补齐必填字段 ResourcePath/HttpMethod，更新请求移除不存在的 code 字段
+- **系统参数** — 创建表单补齐 name 字段，删除操作增加确认弹窗
+- **数据字典** — DesktopDataDictList.vue 脚本补全（修复 25 个缺失变量）
+- **租户模块** — 新增 Description 字段 + keyword/IsEnabled 筛选 + sortField 排序
+- **菜单模块** — GET /menus 新增 parentId 查询参数
+- **操作日志** — Keyword 补全到 Username/Action/Detail 模糊搜索
+- **数据字典** — Keyword 从 PagedRequest 移入 filter 表达式
+- **服务健康** — CORS 配置 Already 支持 JWT 认证
+
+### 后端查询参数完善
+
+- `GET /roles` — 新增 `isSystem` 筛选
+- `GET /menus` — 新增 `parentId` 筛选
+- `GET /tenants` — 新增 `keyword`/`isEnabled`/`sortField`/`isAscending`
+- `GET /operation-logs` — 新增 `keyword` 模糊搜索 Detail 字段
+- `GET /data-dict/types` — 新增 `keyword` 模糊搜索 TypeName/TypeCode
+- `POST /auth/login` — OperationLogFilter 从未认证请求体提取用户名
+- `Global JsonNamingPolicy.CamelCase` — 所有 API 响应统一为 camelCase
+
 ## v1.6 — 安全加固 + 可观测性 + 告警通知 (2026-06-11)
 
 ### 新增
