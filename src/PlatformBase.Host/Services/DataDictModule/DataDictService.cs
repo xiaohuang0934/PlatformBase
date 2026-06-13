@@ -5,6 +5,7 @@ using PlatformBase.Application.Dtos;
 using PlatformBase.Application.Services;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Extensions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
 using PlatformBase.Infrastructure.Data;
@@ -46,13 +47,20 @@ public class DataDictService : IDataDictService
             filter = t => t.IsEnabled == enabled;
         }
 
+        var kw = query.Keyword?.Trim().ToUpperInvariant();
+        if (!string.IsNullOrWhiteSpace(kw))
+        {
+            filter = filter.Append(t =>
+                (t.TypeName != null && t.TypeName.ToUpper().Contains(kw))
+                || (t.TypeCode != null && t.TypeCode.ToUpper().Contains(kw)));
+        }
+
         var request = new PagedRequest
         {
             PageIndex = query.PageIndex,
             PageSize = query.PageSize,
             SortField = query.SortField ?? nameof(DataDictType.SortOrder),
             IsAscending = query.IsAscending,
-            Keyword = query.Keyword
         };
 
         var result = await _uow.Repository<DataDictType>().GetPagedAsync(request, filter, ct);

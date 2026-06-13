@@ -9,33 +9,31 @@ import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const loading = ref(false)
-const menuList = ref<MenuDto[]>([])
-
-/** 扁平化树，建立 id → name 映射 */
-const nameMap = ref<Record<string, string>>({})
+const menuTree = ref<MenuDto[]>([])
+const expandedIds = ref<Set<string>>(new Set())
 
 async function fetchList() {
   loading.value = true
   try {
     const res = await menuApi.getMenuList()
-    const flat: MenuDto[] = []
-    function walk(items: MenuDto[]) {
-      for (const item of items) {
-        flat.push(item)
-        nameMap.value[item.id] = item.name
-        if (item.children?.length)
-          walk(item.children)
-      }
-    }
-    walk(res.data)
-    menuList.value = flat
-  }
-  finally {
-    loading.value = false
-  }
+    const all = res.data ?? []
+    const parents = all.filter(m => !m.parentId)
+    menuTree.value = parents.map(p => ({
+      ...p,
+      children: all.filter(m => m.parentId === p.id),
+    }))
+  } catch { ElMessage.error('加载失败') }
+  finally { loading.value = false }
 }
 
-// --- 新增/编辑 ---
+function toggleExpand(id: string) {
+  if (expandedIds.value.has(id))
+    expandedIds.value.delete(id)
+  else expandedIds.value.add(id)
+  expandedIds.value = new Set(expandedIds.value)
+}
+
+// --- 新增/编辑弹窗 ---
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增菜单')
 const isEditing = ref(false)
@@ -58,27 +56,32 @@ const formRules: FormRules = {
   name: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
 }
 
-// 可选父级（只允许目录作为父级）
-const parentOptions = computed(() =>
-  menuList.value
-    .filter(m => m.children !== undefined || m.type === 1)
-    .map(m => ({ label: m.name, value: m.id })),
-)
+/** 可选父级（目录） */
+const parentOptions = computed(() => {
+  const result: { label: string, value: string }[] = []
+  function walk(items: MenuDto[], depth = 0) {
+    for (const item of items) {
+      result.push({ label: `${'─'.repeat(depth)} ${item.name}`, value: item.id })
+      if (item.children?.length)
+        walk(item.children, depth + 1)
+    }
+  }
+  walk(menuTree.value)
+  return result
+})
 
-function openCreate() {
-  isEditing.value = false
-  dialogTitle.value = '新增菜单'
-  Object.assign(form, { id: '', name: '', type: 1, parentId: undefined, path: '', icon: '', permissionCode: '', sortOrder: 100, isVisible: true })
+function openCreate(parentId?: string) {
+  isEditing.value = false; dialogTitle.value = '新增菜单'
+  Object.assign(form, { id: '', name: '', type: 1, parentId: parentId || undefined, path: '', icon: '', permissionCode: '', sortOrder: 100, isVisible: true })
   dialogVisible.value = true
 }
 
-function openEdit(row: MenuDto) {
-  isEditing.value = true
-  dialogTitle.value = '编辑菜单'
+function openEdit(row: any) {
+  isEditing.value = true; dialogTitle.value = '编辑菜单'
   Object.assign(form, {
     id: row.id,
     name: row.name,
-    type: row.type ?? 1,
+    type: (row.children !== undefined || row.type === 1) ? 1 : 2,
     parentId: row.parentId || undefined,
     path: row.path || '',
     icon: row.icon || '',
@@ -92,66 +95,32 @@ function openEdit(row: MenuDto) {
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid)
-    return
-
-  submitting.value = true
+    return; submitting.value = true
   try {
     if (isEditing.value) {
-      await menuApi.updateMenu(form.id, {
-        name: form.name,
-        path: form.path || undefined,
-        icon: form.icon || undefined,
-        permissionCode: form.permissionCode || undefined,
-        sortOrder: form.sortOrder,
-        isVisible: form.isVisible,
-      })
+      await menuApi.updateMenu(form.id, { name: form.name, path: form.path || undefined, icon: form.icon || undefined, permissionCode: form.permissionCode || undefined, sortOrder: form.sortOrder, isVisible: form.isVisible })
       ElMessage.success('更新成功')
     }
     else {
-      await menuApi.createMenu({
-        name: form.name,
-        type: form.type,
-        parentId: form.parentId || undefined,
-        path: form.path || undefined,
-        icon: form.icon || undefined,
-        permissionCode: form.permissionCode || undefined,
-        sortOrder: form.sortOrder,
-        isVisible: form.isVisible,
-      })
+      await menuApi.createMenu({ name: form.name, type: form.type, parentId: form.parentId || undefined, path: form.path || undefined, icon: form.icon || undefined, permissionCode: form.permissionCode || undefined, sortOrder: form.sortOrder, isVisible: form.isVisible })
       ElMessage.success('创建成功')
     }
-    dialogVisible.value = false
-    fetchList()
+    dialogVisible.value = false; fetchList()
   }
-  finally {
-    submitting.value = false
-  }
+  catch { ElMessage.error('操作失败，请重试') }
+  finally { submitting.value = false }
 }
 
-async function handleDelete(row: MenuDto) {
-  try {
-    await ElMessageBox.confirm(`确定删除菜单 "${row.name}" 吗？`, '确认删除', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-  }
-  catch {
-    return
-  }
-  await menuApi.deleteMenu(row.id)
-  ElMessage.success('已删除')
-  fetchList()
+async function handleDelete(row: any) {
+  try { await ElMessageBox.confirm(`确定删除菜单 "${row.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
+  catch { return }
+  await menuApi.deleteMenu(row.id); ElMessage.success('已删除'); fetchList()
 }
 
-function getParentName(parentId: string | null): string {
-  if (!parentId)
-    return '-'
-  return nameMap.value[parentId] || parentId
-}
+function addChild(parentId: string) { openCreate(parentId) }
 
-function getLevel(item: MenuDto): number {
-  return item.path ? 2 : 1
+function getTypeLabel(item: any): string {
+  return (item.children !== undefined || item.type === 1) ? '目录' : '页面'
 }
 
 onMounted(fetchList)
@@ -163,50 +132,66 @@ onMounted(fetchList)
       <h2 class="page-header__title">
         菜单管理
       </h2>
-      <el-button type="primary" :icon="Plus" @click="openCreate">
+      <el-button type="primary" :icon="Plus" @click="openCreate()">
         新增菜单
       </el-button>
     </div>
 
-    <el-table v-loading="loading" :data="menuList" border stripe row-key="id">
-      <el-table-column v-if="auth.isSuperAdmin" prop="id" label="ID" width="280" show-overflow-tooltip />
-      <el-table-column prop="name" label="名称" min-width="140" />
-      <el-table-column label="类型" width="80" align="center">
-        <template #default="{ row }">
-          <el-tag size="small" :type="getLevel(row) === 1 ? '' : 'info'">
-            {{ getLevel(row) === 1 ? '目录' : '页面' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="上级菜单" width="120">
-        <template #default="{ row }">
-          {{ getParentName(row.parentId) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="path" label="路由" width="150" show-overflow-tooltip />
-      <el-table-column prop="icon" label="图标" width="120" />
-      <el-table-column prop="permissionCode" label="权限编码" width="150" show-overflow-tooltip />
-      <el-table-column prop="sort" label="排序" width="70" align="center" />
-      <el-table-column label="可见" width="70" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.isVisible ? 'success' : 'danger'" size="small">
-            {{ row.isVisible ? '是' : '否' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="150" fixed="right">
-        <template #default="{ row }">
-          <el-button type="primary" link size="small" :icon="Edit" @click="openEdit(row)">
-            编辑
-          </el-button>
-          <el-button type="danger" link size="small" :icon="Delete" @click="handleDelete(row)">
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <!-- 树形菜单列表 -->
+    <div v-loading="loading" class="menu-tree">
+      <template v-for="item in menuTree" :key="item.id">
+        <!-- 一级菜单 -->
+        <div class="tree-item tree-item--level0" @click="toggleExpand(item.id)">
+          <div class="tree-item__row">
+            <span class="tree-item__expand">
+              <span v-if="item.children?.length" class="tree-item__arrow">{{ expandedIds.has(item.id) ? '▼' : '▶' }}</span>
+            </span>
+            <span class="tree-item__name">{{ item.name }}</span>
+            <el-tag size="small" :type="getTypeLabel(item) === '目录' ? undefined : 'info'">
+              {{ getTypeLabel(item) }}
+            </el-tag>
+            <span v-if="item.permissionCode" class="tree-item__perm">{{ item.permissionCode }}</span>
+            <div class="tree-item__actions">
+              <el-button type="primary" link size="small" :icon="Edit" @click.stop="openEdit(item)">
+                编辑
+              </el-button>
+              <el-button type="danger" link size="small" :icon="Delete" @click.stop="handleDelete(item)">
+                删除
+              </el-button>
+              <el-button v-if="getTypeLabel(item) === '目录'" type="primary" link size="small" :icon="Plus" @click.stop="addChild(item.id)">
+                子菜单
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 子菜单 -->
+          <template v-if="expandedIds.has(item.id) && item.children?.length">
+            <div v-for="child in item.children" :key="child.id" class="tree-item tree-item--level1">
+              <div class="tree-item__row">
+                <span class="tree-item__indent" />
+                <span class="tree-item__name">{{ child.name }}</span>
+                <el-tag size="small" type="info">
+                  页面
+                </el-tag>
+                <span v-if="child.path" class="tree-item__path">{{ child.path }}</span>
+                <span v-if="child.permissionCode" class="tree-item__perm">{{ child.permissionCode }}</span>
+                <div class="tree-item__actions">
+                  <el-button type="primary" link size="small" :icon="Edit" @click.stop="openEdit(child)">
+                    编辑
+                  </el-button>
+                  <el-button type="danger" link size="small" :icon="Delete" @click.stop="handleDelete(child)">
+                    删除
+                  </el-button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
   </div>
 
+  <!-- 新增/编辑弹窗（复用） -->
   <el-dialog v-model="dialogVisible" :title="dialogTitle" width="520px" destroy-on-close @closed="formRef?.resetFields()">
     <el-form ref="formRef" :model="form" :rules="formRules" label-width="90px">
       <el-form-item label="名称" prop="name">
@@ -223,7 +208,7 @@ onMounted(fetchList)
         </el-radio-group>
       </el-form-item>
       <el-form-item label="上级菜单">
-        <el-select v-model="form.parentId" placeholder="无（顶级菜单）" clearable style="width: 100%">
+        <el-select v-model="form.parentId" placeholder="无（顶级菜单）" clearable style="width:100%">
           <el-option v-for="p in parentOptions" :key="p.value" :label="p.label" :value="p.value" />
         </el-select>
       </el-form-item>
@@ -231,7 +216,7 @@ onMounted(fetchList)
         <el-input v-model="form.path" placeholder="如 /users" />
       </el-form-item>
       <el-form-item label="图标">
-        <el-input v-model="form.icon" placeholder="Element Plus 图标名，如 UserFilled" />
+        <el-input v-model="form.icon" placeholder="Tabler 图标名，如 IconUsers" />
       </el-form-item>
       <el-form-item label="权限编码">
         <el-input v-model="form.permissionCode" placeholder="如 users.list" />
@@ -253,3 +238,65 @@ onMounted(fetchList)
     </template>
   </el-dialog>
 </template>
+
+<style scoped lang="scss">
+.menu-tree {
+  background: $color-bg-card;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  padding: $spacing-sm 0;
+}
+
+.tree-item {
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: 10px $spacing-md;
+    transition: background $transition-fast;
+    &:hover {
+      background: $color-bg-hover;
+    }
+  }
+
+  &--level1 &__row {
+    padding-left: 48px;
+  }
+
+  &__expand {
+    width: 20px;
+    cursor: pointer;
+    color: $color-text-dim;
+    flex-shrink: 0;
+  }
+
+  &__indent {
+    width: 28px;
+    flex-shrink: 0;
+  }
+
+  &__name {
+    font-weight: 500;
+    color: $color-text-primary;
+    min-width: 100px;
+  }
+
+  &__perm {
+    font-size: $font-size-sm;
+    color: $color-text-dim;
+  }
+
+  &__path {
+    font-size: $font-size-sm;
+    color: $color-text-dim;
+    font-family: $font-mono;
+  }
+
+  &__actions {
+    margin-left: auto;
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+}
+</style>

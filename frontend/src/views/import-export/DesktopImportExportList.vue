@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
+import { downloadFile } from '@/utils/download'
 
-function handleExportUsers() {
-  window.open('/api/v1/import-export/users')
+async function handleExportUsers() {
+  await downloadFile('/api/v1/import-export/users', 'users.xlsx')
 }
 
-// 导入暂为占位
-function handleImportUsers() {
-  ElMessage.info('导入功能开发中')
-}
+function handleImportUsers() { ElMessage.info('导入功能开发中') }
 </script>
 
 <template>

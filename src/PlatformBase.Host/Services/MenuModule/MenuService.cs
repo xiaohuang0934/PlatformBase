@@ -39,8 +39,14 @@ public class MenuService : IMenuService
         return BuildTree(allMenus, grantedSet);
     }
 
-    public async Task<IReadOnlyList<Menu>> GetAllAsync(CancellationToken ct = default)
-        => await _uow.Repository<Menu>().FindAsync(m => m.IsEnabled, ct);
+    public async Task<IReadOnlyList<Menu>> GetAllAsync(Guid? parentId = null, CancellationToken ct = default)
+    {
+        var repo = _uow.Repository<Menu>();
+        if (parentId.HasValue)
+            return await repo.FindAsync(m => m.IsEnabled && m.ParentId == parentId.Value, ct);
+        // parentId 未传时，返回全部启用菜单（供桌面端构建树用）
+        return await repo.FindAsync(m => m.IsEnabled, ct);
+    }
 
     public async Task<Menu?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => await _uow.Repository<Menu>().GetByIdAsync(id, ct);

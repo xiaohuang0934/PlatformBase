@@ -1,4 +1,5 @@
 using PlatformBase.Core.Entities;
+using PlatformBase.Core.Models;
 
 namespace PlatformBase.Application.Services.TenantModule;
 
@@ -7,10 +8,11 @@ namespace PlatformBase.Application.Services.TenantModule;
 /// </summary>
 public interface ITenantService
 {
-    /// <summary>分页查询租户列表</summary>
-    Task<IReadOnlyList<Tenant>> GetPagedAsync(int pageIndex, int pageSize, CancellationToken ct = default);
-    /// <summary>统计租户总数</summary>
-    Task<int> CountAsync(CancellationToken ct = default);
+    /// <summary>分页查询租户列表，支持 keyword(搜索Name/Code/ContactEmail)、isEnabled筛选</summary>
+    Task<PagedResult<Tenant>> GetPagedAsync(string? keyword = null, bool? isEnabled = null,
+        int pageIndex = 1, int pageSize = 10, string? sortField = null, bool isAscending = true,
+        CancellationToken ct = default);
+
     /// <summary>根据ID查询租户</summary>
     Task<Tenant?> GetByIdAsync(Guid id, CancellationToken ct = default);
     /// <summary>创建租户</summary>

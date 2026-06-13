@@ -11,7 +11,7 @@ import {
 /** 用于刷新请求的独立 axios 实例（无拦截器，避免循环依赖） */
 const refreshHttp = axios.create({
   baseURL: '/api/v1',
-  timeout: 10000,
+  timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
 })
 

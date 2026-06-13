@@ -3,7 +3,7 @@ import http from './index'
 
 const BASE = '/tenants'
 
-export function getTenantList(params?: Record<string, unknown>): Promise<ApiResult<any>> {
+export function getTenantList(params?: { keyword?: string, isEnabled?: boolean, pageIndex?: number, pageSize?: number }): Promise<ApiResult<any>> {
   return http.get(BASE, { params }).then(res => res.data)
 }
 

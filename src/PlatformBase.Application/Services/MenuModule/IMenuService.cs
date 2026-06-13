@@ -10,8 +10,8 @@ public interface IMenuService
     /// <summary>获取当前用户可访问的菜单树（已裁剪无权限节点）</summary>
     Task<IReadOnlyList<MenuNode>> GetUserMenuTreeAsync(CancellationToken ct = default);
 
-    /// <summary>分页查询全部菜单（管理用）</summary>
-    Task<IReadOnlyList<Menu>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>查询全部菜单，支持按父级ID筛选（parentId=null 返回一级菜单，parentId有值返回该父级下的子菜单）</summary>
+    Task<IReadOnlyList<Menu>> GetAllAsync(Guid? parentId = null, CancellationToken ct = default);
 
     /// <summary>根据 ID 查询</summary>
     Task<Menu?> GetByIdAsync(Guid id, CancellationToken ct = default);

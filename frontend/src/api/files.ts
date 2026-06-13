@@ -8,7 +8,3 @@ export function getFileList(params: { bizType: string, bizId: string }): Promise
 export function deleteFile(id: string): Promise<ApiResult<null>> {
   return http.delete(`/files/${id}`).then(res => res.data)
 }
-
-export function getDownloadUrl(id: string): string {
-  return `/api/v1/files/${id}/download`
-}

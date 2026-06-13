@@ -86,13 +86,14 @@ watch(() => route.path, () => {
         @contextmenu.prevent="handleContextMenu($event, tag)"
       >
         <span class="tags-view__title">{{ tag.title }}</span>
-        <span
+        <button
           v-if="!tag.meta?.affix"
           class="tags-view__close"
+          aria-label="关闭"
           @click.prevent.stop="closeTag(tag)"
         >
           ×
-        </span>
+        </button>
       </router-link>
     </div>
 
@@ -183,8 +184,14 @@ watch(() => route.path, () => {
     justify-content: center;
     width: 14px;
     height: 14px;
+    padding: 0;
     font-size: 10px;
+    line-height: 1;
+    color: inherit;
+    background: none;
+    border: none;
     border-radius: 50%;
+    cursor: pointer;
     transition: background $transition-fast;
 
     &:hover {

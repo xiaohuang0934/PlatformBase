@@ -20,15 +20,17 @@ public class TenantsController : ControllerBase
 
     public TenantsController(ITenantService service) => _service = service;
 
-    /// <summary>分页查询租户列表</summary>
+    /// <summary>分页查询租户列表，支持 keyword(搜索Name/Code/ContactEmail)、isEnabled筛选</summary>
     [HttpGet]
     [Permission("tenants.list")]
-    public async Task<ApiResult<object>> GetPaged([FromQuery] PagedRequest request, CancellationToken ct)
+    public async Task<ApiResult<object>> GetPaged(
+        [FromQuery] string? keyword, [FromQuery] bool? isEnabled,
+        [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10,
+        CancellationToken ct = default)
     {
-        var items = await _service.GetPagedAsync(request.PageIndex, request.PageSize, ct);
-        var count = await _service.CountAsync(ct);
-        var dtos = items.Select(t => new { t.Id, t.Name, t.Code, t.ContactEmail, t.IsEnabled, t.CreatedAt });
-        return ApiResult<object>.Ok(new { totalCount = count, request.PageIndex, request.PageSize, items = dtos });
+        var result = await _service.GetPagedAsync(keyword, isEnabled, pageIndex, pageSize, ct: ct);
+        var dtos = result.Items.Select(t => new { t.Id, t.Name, t.Code, t.ContactEmail, t.IsEnabled, t.CreatedAt });
+        return ApiResult<object>.Ok(new { result.TotalCount, result.PageIndex, result.PageSize, items = dtos });
     }
 
     /// <summary>查询租户详情</summary>

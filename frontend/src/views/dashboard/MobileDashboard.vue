@@ -6,10 +6,6 @@ const auth = useAuthStore()
 
 <template>
   <div class="m-page">
-    <div class="m-page-header">
-      <span class="m-page-header__title">工作台</span>
-    </div>
-
     <div class="m-card-list">
       <div class="m-card-list__item">
         <div class="welcome-row">

@@ -29,13 +29,18 @@ public class OperationLogService : IOperationLogService
     {
         var uname = query.Username?.Trim().ToUpperInvariant();
         var action = query.Action?.Trim();
+        var kw = query.Keyword?.Trim().ToUpperInvariant();
 
         var filter = ((Expression<Func<OperationLog, bool>>?)null)
             .AppendIf(query.UserId.HasValue, l => l.UserId == query.UserId!.Value)
             .AppendIf(!string.IsNullOrWhiteSpace(action), l => l.Action == action)
             .AppendIf(!string.IsNullOrWhiteSpace(uname), l => l.Username != null && l.Username.ToUpper().Contains(uname!))
             .AppendIf(query.StartTime.HasValue, l => l.Timestamp >= query.StartTime!.Value)
-            .AppendIf(query.EndTime.HasValue, l => l.Timestamp <= query.EndTime!.Value);
+            .AppendIf(query.EndTime.HasValue, l => l.Timestamp <= query.EndTime!.Value)
+            .AppendIf(!string.IsNullOrWhiteSpace(kw), l =>
+                (l.Username != null && l.Username.ToUpper().Contains(kw!))
+                || (l.Action != null && l.Action.ToUpper().Contains(kw!))
+                || (l.Detail != null && l.Detail.ToUpper().Contains(kw!)));
 
         var result = await _uow.Repository<OperationLog>().GetPagedAsync(new PagedRequest
         {

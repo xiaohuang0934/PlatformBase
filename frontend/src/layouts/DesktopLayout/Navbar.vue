@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ElMessageBox } from 'element-plus'
+import { ref } from 'vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 import Hamburger from '@/components/Hamburger.vue'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -14,6 +16,7 @@ const app = useAppStore()
 const permission = usePermissionStore()
 const theme = useThemeStore()
 const settings = useSettingsStore()
+const showPwdDialog = ref(false)
 
 async function handleLogout() {
   try {
@@ -42,12 +45,15 @@ async function handleLogout() {
         {{ theme.mode === 'dark' ? '☀️' : '🌙' }}
       </button>
 
-      <div class="user-menu">
+      <div class="user-menu" tabindex="0">
         <span class="user-menu__name">{{ auth.displayName }}</span>
         <div class="user-menu__avatar">
           {{ (auth.user?.username || '?')[0] }}
         </div>
         <div class="user-menu__dropdown">
+          <button class="user-menu__item" @click="showPwdDialog = true">
+            修改密码
+          </button>
           <button class="user-menu__item" @click="handleLogout">
             退出登录
           </button>
@@ -55,6 +61,7 @@ async function handleLogout() {
       </div>
     </div>
   </div>
+  <ChangePasswordDialog v-model:visible="showPwdDialog" />
 </template>
 
 <style scoped lang="scss">
@@ -159,7 +166,8 @@ async function handleLogout() {
     z-index: 20;
   }
 
-  &:hover &__dropdown {
+  &:hover &__dropdown,
+  &:focus-within &__dropdown {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);

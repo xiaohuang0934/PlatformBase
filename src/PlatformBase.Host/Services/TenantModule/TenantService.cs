@@ -1,7 +1,10 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using PlatformBase.Application.Services;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Extensions;
+using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
 using PlatformBase.Infrastructure.Data;
 
@@ -17,77 +20,104 @@ public class TenantService : ITenantService
 
     public TenantService(IUnitOfWork uow, AppDbContext context) { _uow = uow; _context = context; }
 
-    public async Task<IReadOnlyList<Tenant>> GetPagedAsync(int pageIndex, int pageSize, CancellationToken ct = default)
+    public async Task<PagedResult<Tenant>> GetPagedAsync(
+        string? keyword = null, bool? isEnabled = null,
+        int pageIndex = 1, int pageSize = 10, string? sortField = null, bool isAscending = true,
+        CancellationToken ct = default)
     {
-        var result = await _uow.Repository<Tenant>()
-            .GetPagedAsync(new Core.Models.PagedRequest { PageIndex = pageIndex, PageSize = pageSize }, null, ct);
-        return result.Items.ToList();
-    }
+        var kw = keyword?.Trim().ToUpperInvariant();
+        Expression<Func<Tenant, bool>>? filter = null;
 
-    public async Task<int> CountAsync(CancellationToken ct = default)
-        => await _uow.Repository<Tenant>().CountAsync(null, ct);
+        if (!string.IsNullOrWhiteSpace(kw))
+        {
+            filter = filter.Append(t =>
+                (t.Name != null && t.Name.ToUpper().Contains(kw))
+                || (t.Code != null && t.Code.ToUpper().Contains(kw))
+                || (t.ContactEmail != null && t.ContactEmail.ToUpper().Contains(kw)));
+        }
+
+        if (isEnabled.HasValue)
+        {
+            filter = filter.AppendIf(true, t => t.IsEnabled == isEnabled.Value);
+        }
+
+        return await _uow.Repository<Tenant>().GetPagedAsync(new PagedRequest
+        {
+            PageIndex = pageIndex,
+            PageSize = pageSize,
+            SortField = sortField ?? nameof(Tenant.Name),
+            IsAscending = isAscending,
+        }, filter, ct);
+    }
 
     public async Task<Tenant?> GetByIdAsync(Guid id, CancellationToken ct = default)
         => await _uow.Repository<Tenant>().GetByIdAsync(id, ct);
 
     public async Task<Tenant> CreateAsync(string name, string code, string? email, CancellationToken ct = default)
     {
-        if (await _uow.Repository<Tenant>().AnyAsync(t => t.Code == code, ct))
-            throw new BusinessException("租户编码已存在", ErrorCode.DuplicateRecord);
-        var entity = new Tenant { Name = name, Code = code, ContactEmail = email };
-        var created = await _uow.Repository<Tenant>().AddAsync(entity, ct);
+        var tenant = new Tenant { Name = name, Code = code, ContactEmail = email };
+        var created = await _uow.Repository<Tenant>().AddAsync(tenant, ct);
         await _uow.SaveChangesAsync(ct);
         return created;
     }
 
     public async Task UpdateAsync(Guid id, string? name, string? email, CancellationToken ct = default)
     {
-        var t = await GetByIdAsync(id, ct) ?? throw new BusinessException("租户不存在", ErrorCode.DataNotFound);
-        if (name != null) t.Name = name;
-        if (email != null) t.ContactEmail = email;
-        _uow.Repository<Tenant>().Update(t);
+        var tenant = await _uow.Repository<Tenant>().GetByIdAsync(id, ct);
+        if (tenant == null) throw new BusinessException("租户不存在", ErrorCode.DataNotFound);
+        if (name != null) tenant.Name = name;
+        if (email != null) tenant.ContactEmail = email;
+        _uow.Repository<Tenant>().Update(tenant);
         await _uow.SaveChangesAsync(ct);
     }
 
     public async Task DisableAsync(Guid id, CancellationToken ct = default)
     {
-        var t = await GetByIdAsync(id, ct) ?? throw new BusinessException("租户不存在", ErrorCode.DataNotFound);
-        t.IsEnabled = false;
-        _uow.Repository<Tenant>().Update(t);
+        var tenant = await _uow.Repository<Tenant>().GetByIdAsync(id, ct);
+        if (tenant == null) throw new BusinessException("租户不存在", ErrorCode.DataNotFound);
+        tenant.IsEnabled = false;
+        _uow.Repository<Tenant>().Update(tenant);
         await _uow.SaveChangesAsync(ct);
     }
 
-    public async Task<IReadOnlyList<Guid>> GetTenantIdsForPlatformUserAsync(Guid platformUserId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Guid>> GetTenantIdsForPlatformUserAsync(
+        Guid platformUserId, CancellationToken ct = default)
     {
-        return await _context.Set<PlatformUserTenant>()
+        return await _context.PlatformUserTenants
             .Where(p => p.PlatformUserId == platformUserId)
-            .Select(p => p.TenantId).ToListAsync(ct);
+            .Select(p => p.TenantId)
+            .ToListAsync(ct);
     }
 
-    public async Task<IReadOnlyList<Guid>> GetPlatformUserIdsForTenantAsync(Guid tenantId, CancellationToken ct = default)
+    public async Task<IReadOnlyList<Guid>> GetPlatformUserIdsForTenantAsync(
+        Guid tenantId, CancellationToken ct = default)
     {
-        return await _context.Set<PlatformUserTenant>()
+        return await _context.PlatformUserTenants
             .Where(p => p.TenantId == tenantId)
-            .Select(p => p.PlatformUserId).ToListAsync(ct);
+            .Select(p => p.PlatformUserId)
+            .ToListAsync(ct);
     }
 
-    public async Task AssignTenantToPlatformUserAsync(Guid platformUserId, Guid tenantId, CancellationToken ct = default)
+    public async Task AssignTenantToPlatformUserAsync(
+        Guid platformUserId, Guid tenantId, CancellationToken ct = default)
     {
-        var exists = await _context.Set<PlatformUserTenant>()
+        var exists = await _context.PlatformUserTenants
             .AnyAsync(p => p.PlatformUserId == platformUserId && p.TenantId == tenantId, ct);
         if (exists) return;
-        _context.Set<PlatformUserTenant>().Add(new PlatformUserTenant { PlatformUserId = platformUserId, TenantId = tenantId });
-        await _context.SaveChangesAsync(ct);
+        _context.PlatformUserTenants.Add(new PlatformUserTenant
+        { PlatformUserId = platformUserId, TenantId = tenantId });
+        await _uow.SaveChangesAsync(ct);
     }
 
-    public async Task RemoveTenantFromPlatformUserAsync(Guid platformUserId, Guid tenantId, CancellationToken ct = default)
+    public async Task RemoveTenantFromPlatformUserAsync(
+        Guid platformUserId, Guid tenantId, CancellationToken ct = default)
     {
-        var entry = await _context.Set<PlatformUserTenant>()
+        var entity = await _context.PlatformUserTenants
             .FirstOrDefaultAsync(p => p.PlatformUserId == platformUserId && p.TenantId == tenantId, ct);
-        if (entry != null)
+        if (entity != null)
         {
-            _context.Set<PlatformUserTenant>().Remove(entry);
-            await _context.SaveChangesAsync(ct);
+            _context.PlatformUserTenants.Remove(entity);
+            await _uow.SaveChangesAsync(ct);
         }
     }
 }

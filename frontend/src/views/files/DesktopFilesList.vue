@@ -3,6 +3,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { reactive, ref } from 'vue'
 import * as fileApi from '@/api/files'
 import { useAuthStore } from '@/stores/auth'
+import { downloadFile } from '@/utils/download'
 import { parseTime } from '@/utils/index'
 
 const auth = useAuthStore()
@@ -33,7 +34,7 @@ async function handleDelete(row: any) {
   }
   catch { ElMessage.error('删除失败，请重试') }
 }
-function handleDownload(row: any) { window.open(fileApi.getDownloadUrl(row.id)) }
+function handleDownload(row: any) { downloadFile(`/api/v1/files/${row.id}/download`, row.fileName) }
 </script>
 
 <template>

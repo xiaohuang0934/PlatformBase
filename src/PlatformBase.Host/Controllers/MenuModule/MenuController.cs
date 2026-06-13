@@ -31,12 +31,13 @@ public class MenuController : ControllerBase
         return ApiResult<IReadOnlyList<MenuNode>>.Ok(tree);
     }
 
-    /// <summary>全部菜单列表</summary>
+    /// <summary>全部菜单列表。默认返回全部启用菜单；传 parentId 返回指定父级下的子菜单。</summary>
     [HttpGet]
     [Permission("menus.list")]
-    public async Task<ApiResult<IReadOnlyList<MenuDto>>> GetAll(CancellationToken ct)
+    public async Task<ApiResult<IReadOnlyList<MenuDto>>> GetAll(
+        [FromQuery] Guid? parentId, CancellationToken ct)
     {
-        var items = await _service.GetAllAsync(ct);
+        var items = await _service.GetAllAsync(parentId, ct);
         var dtos = items.Select(ToDto).ToList();
         return ApiResult<IReadOnlyList<MenuDto>>.Ok(dtos);
     }

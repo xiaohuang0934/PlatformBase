@@ -282,7 +282,7 @@ onMounted(() => { loadRoles(); fetchList() })
     <template #footer>
       <el-button @click="pwdDialogVisible = false">
         取消
-      </el-button><el-button type="primary" @click="handleResetPwd">
+      </el-button><el-button type="warning" @click="handleResetPwd">
         确定
       </el-button>
     </template>

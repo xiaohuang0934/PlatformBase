@@ -7,9 +7,9 @@ export function getMenuTree(): Promise<ApiResult<MenuDto[]>> {
   return http.get('/menus/tree').then(res => res.data)
 }
 
-/** 获取全部菜单列表（管理用） */
-export function getMenuList(): Promise<ApiResult<MenuDto[]>> {
-  return http.get('/menus').then(res => res.data)
+/** 获取菜单列表（支持按父级ID筛选：不传返回一级菜单，传值返回该父级下的子菜单） */
+export function getMenuList(parentId?: string): Promise<ApiResult<MenuDto[]>> {
+  return http.get('/menus', { params: parentId ? { parentId } : {} }).then(res => res.data)
 }
 
 export function getMenuById(id: string): Promise<ApiResult<MenuDto>> {

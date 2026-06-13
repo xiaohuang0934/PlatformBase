@@ -444,26 +444,26 @@ public static class DataSeeder
         if (existing.Count > 0) return;
 
         // ═══════════════ 一级菜单（目录，Type=1）═══════════════
-        var sysMenu  = await AddMenu(uow, createdBy, new Menu { Name = "系统管理", Type = 1, Icon = "Setting",   SortOrder = 100 });
-        var confMenu = await AddMenu(uow, createdBy, new Menu { Name = "系统配置", Type = 1, Icon = "Operation", SortOrder = 200 });
-        var monMenu  = await AddMenu(uow, createdBy, new Menu { Name = "系统监控", Type = 1, Icon = "Monitor",   SortOrder = 300 });
+        var sysMenu  = await AddMenu(uow, createdBy, new Menu { Name = "系统管理", Type = 1, Icon = "IconSettings",    SortOrder = 100 });
+        var confMenu = await AddMenu(uow, createdBy, new Menu { Name = "系统配置", Type = 1, Icon = "IconTool",   SortOrder = 200 });
+        var monMenu  = await AddMenu(uow, createdBy, new Menu { Name = "系统监控", Type = 1, Icon = "IconActivity",   SortOrder = 300 });
 
         // ═══════════════ 系统管理 → 子菜单（Type=2 页面）═══════════════
-        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "用户管理", Type = 2, Icon = "UserFilled",    Path = "/users",              PermissionCode = "users.list",          SortOrder = 1, KeepAlive = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "角色管理", Type = 2, Icon = "Avatar",        Path = "/roles",              PermissionCode = "roles.list",          SortOrder = 2, KeepAlive = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "权限管理", Type = 2, Icon = "Lock",          Path = "/permissions",        PermissionCode = "perms.list",          SortOrder = 3, KeepAlive = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "组织架构", Type = 2, Icon = "Share",         Path = "/organization-units", PermissionCode = "org-units.list",      SortOrder = 4, KeepAlive = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "租户管理", Type = 2, Icon = "OfficeBuilding", Path = "/tenants",            PermissionCode = "tenants.list",        SortOrder = 5, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "用户管理", Type = 2, Icon = "IconUsers",       Path = "/users",              PermissionCode = "users.list",          SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "角色管理", Type = 2, Icon = "IconUserShield",  Path = "/roles",              PermissionCode = "roles.list",          SortOrder = 2, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "权限管理", Type = 2, Icon = "IconLock",        Path = "/permissions",        PermissionCode = "perms.list",          SortOrder = 3, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "组织架构", Type = 2, Icon = "IconShare",       Path = "/organization-units", PermissionCode = "org-units.list",      SortOrder = 4, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = sysMenu.Id, Name = "租户管理", Type = 2, Icon = "IconBuilding",    Path = "/tenants",            PermissionCode = "tenants.list",        SortOrder = 5, KeepAlive = true });
 
         // ═══════════════ 系统配置 → 子菜单（Type=2 页面）═══════════════
-        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "菜单管理", Type = 2, Icon = "Menu",          Path = "/menus",            PermissionCode = "menus.list",          SortOrder = 1, KeepAlive = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "系统参数", Type = 2, Icon = "Tickets",       Path = "/system-params",    PermissionCode = "system-params.list",  SortOrder = 2, KeepAlive = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "数据字典", Type = 2, Icon = "Collection",    Path = "/data-dict",        PermissionCode = "datadict.list",       SortOrder = 3, KeepAlive = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "文件管理", Type = 2, Icon = "Folder",        Path = "/files",            PermissionCode = "files.upload",        SortOrder = 4, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "菜单管理", Type = 2, Icon = "IconMenu2",        Path = "/menus",            PermissionCode = "menus.list",          SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "系统参数", Type = 2, Icon = "IconSettingsCog",  Path = "/system-params",    PermissionCode = "system-params.list",  SortOrder = 2, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "数据字典", Type = 2, Icon = "IconBooks",        Path = "/data-dict",        PermissionCode = "datadict.list",       SortOrder = 3, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "文件管理", Type = 2, Icon = "IconFolders",      Path = "/files",            PermissionCode = "files.upload",        SortOrder = 4, KeepAlive = true });
 
         // ═══════════════ 系统监控 → 子菜单（Type=2 页面）═══════════════
-        await AddMenu(uow, createdBy, new Menu { ParentId = monMenu.Id, Name = "操作日志", Type = 2, Icon = "Document",  Path = "/operation-logs",   PermissionCode = "operation-logs.list", SortOrder = 1, KeepAlive = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = monMenu.Id, Name = "定时任务", Type = 2, Icon = "Timer",     Path = "/jobs",              PermissionCode = "jobs.list",           SortOrder = 2, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = monMenu.Id, Name = "操作日志", Type = 2, Icon = "IconFileText",  Path = "/operation-logs",   PermissionCode = "operation-logs.list", SortOrder = 1, KeepAlive = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = monMenu.Id, Name = "定时任务", Type = 2, Icon = "IconClock",     Path = "/jobs",              PermissionCode = "jobs.list",           SortOrder = 2, KeepAlive = true });
 
         await uow.SaveChangesAsync();
     }
