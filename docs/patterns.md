@@ -216,7 +216,7 @@ await _uow.SaveChangesAsync(ct);  // ③ 事务提交
 
 ---
 
-## 9. 三级变量解析（CurrentUserService.TenantId）
+## 9. 三级变量解析（CurrentUserContext.TenantId）
 
 **问题：** 平台管理员通过 X-Tenant-Id 头切换租户，但创建用户时不选租户应默认创建平台级用户。
 
@@ -224,7 +224,7 @@ await _uow.SaveChangesAsync(ct);  // ③ 事务提交
 
 ```csharp
 user.TenantId = dto.TenantId              // ① 客户端传入（最高优先）
-               ?? _currentUser.TenantId;   // ② 当前请求上下文（X-Tenant-Id）
+               ?? _currentUser.CurrentTenantId;   // ② 当前请求上下文（X-Tenant-Id）
                                            // ③ null = 平台管理员不选租户 → 平台级用户
 
 user.UserType = user.TenantId == null ? UserType.PlatformAdmin : UserType.TenantUser;

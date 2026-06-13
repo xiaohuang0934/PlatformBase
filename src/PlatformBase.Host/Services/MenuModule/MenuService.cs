@@ -12,9 +12,9 @@ public class MenuService : IMenuService
 {
     private readonly IUnitOfWork _uow;
     private readonly IPermissionService _permService;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentUserContext _currentUser;
 
-    public MenuService(IUnitOfWork uow, IPermissionService permService, ICurrentUserService currentUser)
+    public MenuService(IUnitOfWork uow, IPermissionService permService, ICurrentUserContext currentUser)
     {
         _uow = uow;
         _permService = permService;

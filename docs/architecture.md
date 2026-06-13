@@ -17,7 +17,7 @@ PlatformBase 采用 Clean Architecture（DDD 分层），依赖方向单向内�
 │  │ IdentityServer4 │ │ Service Implementations │ │
 │  │ Token Issuance  │ │ UserService             │ │
 │  │ JWT Signing     │ │ PermissionService       │ │
-│  └────────────────┘ │ CurrentUserService       │ │
+│  └────────────────┘ │ CurrentUserContext       │ │
 │                      └────────┬────────────────┘ │
 ├───────────────────────────────┼──────────────────┤
 │  PlatformBase.Infrastructure  │                  │
@@ -38,7 +38,7 @@ PlatformBase 采用 Clean Architecture（DDD 分层），依赖方向单向内�
 │  PlatformBase.Core                              │
 │  ┌────────────────────────────────────────────┐ │
 │  │ Entity Hierarchy + Repository Contracts    │ │
-│  │ ICurrentUserService + ApiResult<T>         │ │
+│  │ ICurrentUserContext + ApiResult<T>         │ │
 │  │ BusinessException + ErrorCode              │ │
 │  └────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────┘
@@ -120,7 +120,7 @@ IEntity<TKey>              ← 泛型主键接口
 
 ### 审计自动填充 / Audit Auto-Fill
 
-`AppDbContext.SaveChangesAsync` 在持久化前通过 `ICurrentUserService` 自动填充：
+`AppDbContext.SaveChangesAsync` 在持久化前通过 `ICurrentUserContext` 自动填充：
 
 | 字段 / Field | 触发时机 / Trigger | 值来源 / Source |
 |-------------|-------------------|----------------|

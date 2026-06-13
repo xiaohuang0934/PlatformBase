@@ -7,7 +7,7 @@ PlatformBase 采用 **自建 User 体系 + IdentityServer4 + JWT Bearer** 架构
 - **User 实体** — 继承 `SoftDeleteEntity`，密码使用 BCrypt 哈希
 - **IdentityServer4** — OAuth2 Token 签发服务（Password Grant），嵌入式同进程部署
 - **JwtBearer** — 验证请求中的 Bearer token（共享 X509 签名密钥）
-- **ICurrentUserService** — 注入到 Service / DbContext，提供当前用户会话上下文
+- **ICurrentUserContext** — 注入到 Service / DbContext，提供当前用户会话上下文
 
 ## User 实体 / User Entity
 
@@ -77,10 +77,10 @@ var token = await _identityServerTools.IssueJwtAsync(3600, claims);
 
 **签名密钥**：IdentityServer 和 JwtBearer 共享同一个 X509 自签名证书（详见 [架构设计](architecture.md)）。
 
-## ICurrentUserService — 会话上下文注入 / Session Context Injection
+## ICurrentUserContext — 会话上下文注入 / Session Context Injection
 
 ```csharp
-public interface ICurrentUserService
+public interface ICurrentUserContext
 {
     Guid? UserId { get; }
     string? UserName { get; }
@@ -97,7 +97,7 @@ public interface ICurrentUserService
 HTTP Request → JwtBearer 验证 → HttpContext.User 填充 (ClaimsPrincipal)
   │
   ├─ Controller / Service
-  │     注入 ICurrentUserService
+  │     注入 ICurrentUserContext
   │     .UserId / .UserName / .Roles / .IsAuthenticated
   │
   └─ AppDbContext.SaveChangesAsync()
@@ -110,7 +110,7 @@ HTTP Request → JwtBearer 验证 → HttpContext.User 填充 (ClaimsPrincipal)
 ```csharp
 public class OrderService
 {
-    private readonly ICurrentUserService _user;
+    private readonly ICurrentUserContext _user;
 
     public async Task CreateAsync(CreateOrderDto dto)
     {

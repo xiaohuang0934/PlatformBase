@@ -10,19 +10,19 @@ namespace PlatformBase.Infrastructure.Data;
 /// <summary>
 /// 应用程序数据库上下文
 /// 自动处理：软删除全局查询过滤、审计字段自动填充（含操作人）
-/// 通过 <see cref="ICurrentUserService"/> 注入当前用户，自动填充 CreatedBy / UpdatedBy / DeletedBy
+/// 通过 <see cref="ICurrentUserContext"/> 注入当前用户，自动填充 CreatedBy / UpdatedBy / DeletedBy
 /// </summary>
 public class AppDbContext : DbContext
 {
-    private readonly ICurrentUserService _currentUserService;
+    private readonly ICurrentUserContext _currentUserContext;
 
     /// <summary>
     /// 构造函数，由 DI 容器注入 DbContext 配置和当前用户上下文
     /// </summary>
-    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserService currentUserService)
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserContext currentUserContext)
         : base(options)
     {
-        _currentUserService = currentUserService;
+        _currentUserContext = currentUserContext;
     }
 
     // ═══════════════════ 认证授权相关实体 ═══════════════════
@@ -252,12 +252,12 @@ public class AppDbContext : DbContext
     ///   <item>EntityState.Modified  → UpdatedAt / UpdatedBy（当前用户ID）</item>
     ///   <item>ISoftDelete 软删除   → DeletedAt / DeletedBy（当前用户ID）</item>
     /// </list>
-    /// CreatedBy / UpdatedBy / DeletedBy 的值从 <see cref="ICurrentUserService.UserId"/> 获取，
+    /// CreatedBy / UpdatedBy / DeletedBy 的值从 <see cref="ICurrentUserContext.UserId"/> 获取，
     /// 未登录时填 null
     /// </summary>
     private void ApplyAuditFields()
     {
-        var currentUserId = _currentUserService.UserId;
+        var currentUserId = _currentUserContext.UserId;
 
         foreach (var entry in ChangeTracker.Entries<IAuditable>())
         {
@@ -283,7 +283,7 @@ public class AppDbContext : DbContext
         }
 
         // 多租户：自动填充 TenantId
-        var tenantId = _currentUserService.TenantId;
+        var tenantId = _currentUserContext.CurrentTenantId;
         foreach (var entry in ChangeTracker.Entries<ITenantAware>())
         {
             if (entry.State == EntityState.Added && entry.Entity.TenantId == Guid.Empty)
@@ -334,7 +334,7 @@ public class AppDbContext : DbContext
 
     /// <summary>
     /// 多租户全局查询过滤器
-    /// 根据 ICurrentUserService.AccessibleTenantIds 控制可见范围：
+    /// 根据 ICurrentUserContext.AccessibleTenantIds 控制可见范围：
     /// - 租户用户 → 只能看自己租户的数据
     /// - 平台管理员（已分配）→ 可看已分配租户 + Guid.Empty（通用数据）
     /// - 无分配记录 → 什么也看不到
@@ -354,13 +354,13 @@ public class AppDbContext : DbContext
     private LambdaExpression BuildTenantFilter(Type entityType)
     {
         // ⚠️ 关键：不在模型构建时捕获 AccessibleTenantIds 的副本，
-        // 而是在查询时通过 _currentUserService 实时求值
+        // 而是在查询时通过 _currentUserContext 实时求值
         var param = Expression.Parameter(entityType, "e");
 
         Expression<Func<ITenantAware, bool>> filter = e =>
-            _currentUserService.AccessibleTenantIds.Count == 0
+            _currentUserContext.AccessibleTenantIds.Count == 0
                 ? false
-                : e.TenantId == Guid.Empty || _currentUserService.AccessibleTenantIds.Contains(e.TenantId);
+                : e.TenantId == Guid.Empty || _currentUserContext.AccessibleTenantIds.Contains(e.TenantId);
 
         return ConvertFilterExpression(filter, entityType);
     }

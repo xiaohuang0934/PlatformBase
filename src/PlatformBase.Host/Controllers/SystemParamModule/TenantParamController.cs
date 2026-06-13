@@ -21,9 +21,9 @@ public class TenantParamController : ControllerBase
 {
     private readonly ISystemParamService _spService;
     private readonly IUnitOfWork _uow;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentUserContext _currentUser;
 
-    public TenantParamController(ISystemParamService spService, IUnitOfWork uow, ICurrentUserService currentUser)
+    public TenantParamController(ISystemParamService spService, IUnitOfWork uow, ICurrentUserContext currentUser)
     { _spService = spService; _uow = uow; _currentUser = currentUser; }
 
     /// <summary>查询当前租户的参数覆盖值（TenantParam → Fallback SystemParam）</summary>
@@ -31,7 +31,7 @@ public class TenantParamController : ControllerBase
     [Permission("tenant-params.list")]
     public async Task<ApiResult<string?>> GetValue(string code, CancellationToken ct)
     {
-        var tid = _currentUser.TenantId;
+        var tid = _currentUser.CurrentTenantId;
         if (tid == null) return ApiResult<string?>.Fail(ErrorCode.BadRequest, "请先选择租户");
 
         // 先查租户覆盖
@@ -50,7 +50,7 @@ public class TenantParamController : ControllerBase
     [Permission("tenant-params.create")]
     public async Task<ApiResult> Create([FromBody] CreateSystemParamDto dto, CancellationToken ct)
     {
-        var tid = _currentUser.TenantId;
+        var tid = _currentUser.CurrentTenantId;
         if (tid == null) return ApiResult.Fail(ErrorCode.BadRequest, "请先选择租户");
         var exists = await _uow.Repository<TenantParam>()
             .AnyAsync(p => p.TenantId == tid.Value && p.Code == dto.Code, ct);

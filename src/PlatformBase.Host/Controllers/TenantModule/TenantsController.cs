@@ -1,10 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PlatformBase.Application.Services;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
+using PlatformBase.Core.Services;
 using PlatformBase.Host.Authorization;
+using PlatformBase.Infrastructure.Data;
 
 namespace PlatformBase.Host.Controllers.TenantModule;
 
@@ -17,8 +20,15 @@ namespace PlatformBase.Host.Controllers.TenantModule;
 public class TenantsController : ControllerBase
 {
     private readonly ITenantService _service;
+    private readonly ICurrentUserContext _userContext;
+    private readonly AppDbContext _db;
 
-    public TenantsController(ITenantService service) => _service = service;
+    public TenantsController(ITenantService service, ICurrentUserContext userContext, AppDbContext db)
+    {
+        _service = service;
+        _userContext = userContext;
+        _db = db;
+    }
 
     /// <summary>分页查询租户列表，支持 keyword(搜索Name/Code/ContactEmail)、isEnabled筛选</summary>
     [HttpGet]
@@ -69,6 +79,29 @@ public class TenantsController : ControllerBase
     {
         await _service.DisableAsync(id, ct);
         return ApiResult.Ok("已停用");
+    }
+
+    /// <summary>
+    /// 获取当前平台管理员已分配的租户列表（前端下拉框数据源）。
+    /// 非平台管理员返回空列表，租户用户返回空列表。
+    /// </summary>
+    [HttpGet("accessible")]
+    public async Task<ApiResult<IReadOnlyList<object>>> GetAccessibleTenants(CancellationToken ct)
+    {
+        if (!_userContext.IsSuperAdmin)
+            return ApiResult<IReadOnlyList<object>>.Ok([]);
+
+        var ids = _userContext.AccessibleTenantIds;
+        if (ids.Count == 0)
+            return ApiResult<IReadOnlyList<object>>.Ok([]);
+
+        var tenants = await _db.Set<PlatformBase.Core.Entities.Tenant>()
+            .AsNoTracking()
+            .Where(t => ids.Contains(t.Id))
+            .Select(t => new { t.Id, t.Name })
+            .ToListAsync(ct);
+
+        return ApiResult<IReadOnlyList<object>>.Ok(tenants);
     }
 
     // ═══════════════════ 平台账号-租户关联管理 ═══════════════════

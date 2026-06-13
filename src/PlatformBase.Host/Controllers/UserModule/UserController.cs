@@ -23,9 +23,9 @@ public class UserController : ControllerBase
 {
     private readonly IUserService _service;
     private readonly IUnitOfWork _uow;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentUserContext _currentUser;
 
-    public UserController(IUserService service, IUnitOfWork uow, ICurrentUserService currentUser)
+    public UserController(IUserService service, IUnitOfWork uow, ICurrentUserContext currentUser)
     {
         _service = service;
         _uow = uow;
@@ -86,8 +86,8 @@ public class UserController : ControllerBase
                 PhoneNumber = dto.PhoneNumber,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 IsActive = true,
-                TenantId = _currentUser.TenantId,
-                UserType = _currentUser.IsSuperAdmin && _currentUser.TenantId == null
+                TenantId = _currentUser.CurrentTenantId,
+                UserType = _currentUser.IsSuperAdmin && _currentUser.CurrentTenantId == null
                     ? UserType.PlatformAdmin : UserType.TenantUser
             };
 

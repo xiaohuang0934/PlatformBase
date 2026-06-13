@@ -24,14 +24,14 @@ public class UserService : IUserService
     private readonly AppDbContext _context;
     private readonly StackExchange.Redis.IDatabase? _redis;
     private readonly IdentityServer.PersistedGrantStore _grantStore;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentUserContext _currentUser;
     private readonly ISystemParamService _sysParam;
 
     private const int DefaultMaxFailedAttempts = 5;
     private const int DefaultLockoutMinutes = 5;
 
     public UserService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider,
-        IdentityServer.PersistedGrantStore grantStore, ICurrentUserService currentUser,
+        IdentityServer.PersistedGrantStore grantStore, ICurrentUserContext currentUser,
         ISystemParamService sysParam)
     {
         _uow = uow;

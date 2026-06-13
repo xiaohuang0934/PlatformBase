@@ -20,10 +20,10 @@ namespace PlatformBase.Host.Controllers.NotificationModule;
 public class NotificationController : ControllerBase
 {
     private readonly INotificationService _service;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentUserContext _currentUser;
     private readonly IUnitOfWork _uow;
 
-    public NotificationController(INotificationService service, ICurrentUserService currentUser, IUnitOfWork uow)
+    public NotificationController(INotificationService service, ICurrentUserContext currentUser, IUnitOfWork uow)
     {
         _service = service;
         _currentUser = currentUser;

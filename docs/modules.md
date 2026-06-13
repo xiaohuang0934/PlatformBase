@@ -237,8 +237,8 @@ ITenantAware（全局过滤器自动生效）：
 
 **写入规则：**
 - ITenantAware → `ApplyAuditFields` 自动填充 `TenantId`
-- User → Controller 层显式 `TenantId = _currentUser.TenantId`
-- Role → Service 层显式 `TenantId = _currentUser.TenantId`
+- User → Controller 层显式 `TenantId = _currentUser.CurrentTenantId`
+- Role → Service 层显式 `TenantId = _currentUser.CurrentTenantId`
 
 **API：**
 - `GET/POST/PUT/DELETE /api/v1/tenants` — 租户 CRUD

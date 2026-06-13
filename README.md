@@ -26,7 +26,7 @@ Host (Startup / Middleware / Controllers / IdentityServer4)
 
 | Layer / 层 | Project / 项目 | Responsibility / 职责 |
 |-------------|----------------|------------------------|
-| **Core** | `PlatformBase.Core` | Entity hierarchy, repository contracts, unified response, exceptions, `ICurrentUserService` |
+| **Core** | `PlatformBase.Core` | Entity hierarchy, repository contracts, unified response, exceptions, `ICurrentUserContext` |
 | **Application** | `PlatformBase.Application` | DTOs, service interfaces (`IUserService`, `IPermissionService`) |
 | **Infrastructure** | `PlatformBase.Infrastructure` | EF Core `AppDbContext` (audit auto-fill), repository impl, unit of work |
 | **Host** | `PlatformBase.Host` | Startup, IdentityServer4, JWT auth, RBAC authorization, Redis, Swagger |
@@ -69,7 +69,7 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 |----------------|---------------------|----------------|
 | JWT Auth / 认证 | IdentityServer4 + 自建 User 体系，X509 自签名证书，BCrypt 密码哈希 | [认证授权](docs/auth.md) |
 | RBAC Permissions / 权限 | 角色继承 + 用户直达权限 + `IsGranted` 覆盖 + Redis 缓存降级 | [权限管理](docs/permissions.md) |
-| Audit Tracking / 审计 | `ICurrentUserService` → `AppDbContext` auto-fills `CreatedBy` / `UpdatedBy` / `DeletedBy` | [架构设计](docs/architecture.md) |
+| Audit Tracking / 审计 | `ICurrentUserContext` → `AppDbContext` auto-fills `CreatedBy` / `UpdatedBy` / `DeletedBy` | [架构设计](docs/architecture.md) |
 | Soft Delete / 软删除 | `SoftDeleteEntity` + global query filter auto-excludes deleted records | [数据库设计](docs/database.md) |
 | Unified Response / 统一响应 | `ApiResult<T>` — all endpoints return `{ success, code, message, data, traceId }` | [架构设计](docs/architecture.md) |
 | Multi-Database / 多数据库 | SQLite (default) / SQL Server / MySQL, config-driven switching | [数据库设计](docs/database.md) |
@@ -168,7 +168,7 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 | [API 参考](docs/api-reference.md) | 92 个端点全量清单（路由/方法/权限） |
 | [错误码](docs/error-codes.md) | ErrorCode 完整体系及客户端处理建议 |
 | [配置参考](docs/configuration.md) | appsettings.json 完整说明 + 数据库切换 |
-| [认证授权](docs/auth.md) | JWT + IdentityServer4 + ICurrentUserService + audit |
+| [认证授权](docs/auth.md) | JWT + IdentityServer4 + ICurrentUserContext + audit |
 | [权限管理](docs/permissions.md) | RBAC model, `[Permission]` attribute, Redis cache |
 | [数据库设计](docs/database.md) | Table schema, entity relationships, seed data |
 | [开发指南](docs/dev-guide.md) | Add business modules, coding conventions |
@@ -193,7 +193,7 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 ### 认证授权 / Authentication & Authorization
 - [x] JWT auth (IdentityServer4 + custom User)
 - [x] RBAC permissions (role inheritance + user override + Redis)
-- [x] `ICurrentUserService` session context injection
+- [x] `ICurrentUserContext` session context injection
 - [x] Login lockout + rate-limit (DB + Redis)
 
 ### 基础业务模块 / Basic Business Modules

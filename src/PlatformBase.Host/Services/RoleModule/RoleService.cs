@@ -21,9 +21,9 @@ public class RoleService : IRoleService
     private readonly IUnitOfWork _uow;
     private readonly AppDbContext _context;
     private readonly StackExchange.Redis.IDatabase? _redis;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentUserContext _currentUser;
 
-    public RoleService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider, ICurrentUserService currentUser)
+    public RoleService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider, ICurrentUserContext currentUser)
     {
         _uow = uow;
         _context = context;
@@ -75,7 +75,7 @@ public class RoleService : IRoleService
             Code = dto.Code,
             NormalizedName = normalized,
             Description = dto.Description,
-            TenantId = _currentUser.TenantId
+            TenantId = _currentUser.CurrentTenantId
         };
 
         var created = await _uow.Repository<Role>().AddAsync(role, ct);

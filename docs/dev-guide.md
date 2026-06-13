@@ -102,7 +102,7 @@ public class ProductController : ControllerBase
 
 **特殊注册**（无接口模式、Core 层接口）仍需手动处理：
 ```csharp
-builder.Services.AddScoped<ICurrentUserService, CurrentUserService>(); // Core 层接口
+builder.Services.AddScoped<ICurrentUserContext, CurrentUserContext>(); // Core 层接口
 builder.Services.AddScoped<PersistedGrantStore>(); // 无接口
 ```
 
@@ -138,7 +138,7 @@ var userRoles = await _context.Set<UserRole>()
 await _uow.Repository<Product>().AddAsync(product, ct);
 await _uow.SaveChangesAsync(ct);
 // product.CreatedAt = DateTime.UtcNow  ← 自动
-// product.CreatedBy = "admin"         ← 自动（来自 ICurrentUserService）
+// product.CreatedBy = "admin"         ← 自动（来自 ICurrentUserContext）
 ```
 
 ### 权限鉴权 / Permission Authorization
@@ -176,13 +176,13 @@ _uow.Repository<Product>().Delete(product);
 await _uow.SaveChangesAsync(ct);
 ```
 
-## 用户上下文注入 / ICurrentUserService
+## 用户上下文注入 / ICurrentUserContext
 
 ```csharp
 // 在任意 Service / Controller 中注入
 public class NotificationService
 {
-    private readonly ICurrentUserService _user;
+    private readonly ICurrentUserContext _user;
 
     public async Task SendAsync(string message)
     {

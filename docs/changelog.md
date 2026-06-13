@@ -79,10 +79,10 @@
 ### 新增
 
 - **多租户可见性控制**
-  - `ICurrentUserService.AccessibleTenantIds` — 控制读取可见范围
+  - `ICurrentUserContext.AccessibleTenantIds` — 控制读取可见范围
   - 平台管理员 → 查询 `PlatformUserTenants` 表获取已分配租户列表
   - 租户用户 → 仅可见自己租户数据
-  - `CurrentUserService.LoadAssignedTenants()` — 懒加载已分配租户
+  - `CurrentUserContext.LoadAssignedTenants()` — 懒加载已分配租户
 
 - **AppDbContext 自动填充 TenantId**
   - `ApplyAuditFields` 增加 `ITenantAware` 实体自动填充 `TenantId`
@@ -111,7 +111,7 @@
 - `UserController.Create` — 自动填充 `TenantId` + `UserType`
 - `RoleService.CreateAsync` — 自动填充 `TenantId`
 - `RoleService.GetPagedAsync` — 增加租户过滤
-- `UserService.GetPagedAsync` — 增加租户过滤（注入 `ICurrentUserService`）
+- `UserService.GetPagedAsync` — 增加租户过滤（注入 `ICurrentUserContext`）
 - `Program.cs` — 合并分散的手动注册为统一注释块，移除重复 using
 - 移除未使用的 `FluentValidation.AspNetCore` NuGet 包
 
@@ -135,7 +135,7 @@
   - `TenantDataDictTypes` / `TenantDataDictItems` — 租户字典覆盖
   - 全局查询过滤器 `ITenantAware` — `AppDbContext` 自动附加 `WHERE TenantId = {current}`
   - JWT Claims 扩展 `tenant_id` + `user_type`
-  - `ICurrentUserService` 扩展 +`TenantId` + `IsSuperAdmin` + X-Tenant-Id 头切换
+  - `ICurrentUserContext` 扩展 +`TenantId` + `IsSuperAdmin` + X-Tenant-Id 头切换
   - `GET/POST/PUT/DELETE /api/v1/tenants` — 租户管理 CRUD
   - `GET/POST/PUT /api/v1/tenant-params` — 租户参数 CRUD
   - 种子数据：默认租户 ×1、platform_admin ×1、tenant_user ×1
@@ -208,7 +208,7 @@
 
 - 现有 4 张表改基类为 `TenantXxxEntity`：OperationLog / FileAttachment / Notification / NotificationTemplate
 - `AppDbContext` — 新增全局 TenantId 过滤器
-- `ICurrentUserService` — 新增 `TenantId` + `IsSuperAdmin`
+- `ICurrentUserContext` — 新增 `TenantId` + `IsSuperAdmin`
 - `AuthService` / `ResourceOwnerPasswordValidator` — JWT Claims 加入 `tenant_id` + `user_type`
 - 8 个 Controller 路由 + `[ApiVersion]` + `v{version}` 段
 - README 路线图全面更新
@@ -384,7 +384,7 @@
   - Redis 权限缓存（30 min）+ 自动降级
 
 - **用户会话上下文注入**
-  - `ICurrentUserService` — 注入到 Service / DbContext
+  - `ICurrentUserContext` — 注入到 Service / DbContext
   - `AppDbContext.ApplyAuditFields` 自动填充 `CreatedBy` / `UpdatedBy` / `DeletedBy`
 
 - **Swagger JWT 集成**
@@ -397,7 +397,7 @@
 
 ### 变更 / Changed
 
-- `AppDbContext` 构造注入 `ICurrentUserService`，`ApplyAuditFields` 增强
+- `AppDbContext` 构造注入 `ICurrentUserContext`，`ApplyAuditFields` 增强
 - `ErrorCode` 新增 7 个认证权限错误码（1004-1010）
 - `Program.cs` 完整注册链：IdentityServer4 → JwtBearer → 权限鉴权 → Redis → Swagger Bearer
 

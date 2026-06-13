@@ -22,13 +22,13 @@ public class AuthController : ControllerBase
     private readonly IAuthService _authService;
     private readonly IUserService _userService;
     private readonly IPermissionService _permissionService;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ICurrentUserContext _currentUser;
 
     public AuthController(
         IAuthService authService,
         IUserService userService,
         IPermissionService permissionService,
-        ICurrentUserService currentUser)
+        ICurrentUserContext currentUser)
     {
         _authService = authService;
         _userService = userService;
