@@ -17,6 +17,7 @@ export const useTagsViewStore = defineStore('tagsView', () => {
 
   const cachedViewNames = computed(() => cachedViews.value)
 
+  /** 添加 View */
   function addView(view: TagView) {
     const exists = visitedViews.value.some(v => v.path === view.path)
     if (exists)
@@ -37,6 +38,7 @@ export const useTagsViewStore = defineStore('tagsView', () => {
     }
   }
 
+  /** 删除 View */
   function delView(view: TagView) {
     const idx = visitedViews.value.findIndex(v => v.path === view.path)
     if (idx === -1)
@@ -52,17 +54,20 @@ export const useTagsViewStore = defineStore('tagsView', () => {
     }
   }
 
+  /** 删除 Others Views */
   function delOthersViews(view: TagView) {
     visitedViews.value = visitedViews.value.filter(v => v.path === view.path || v.meta?.affix)
     cachedViews.value = cachedViews.value.filter(name => visitedViews.value.some(v => v.name === name))
   }
 
+  /** 删除 All Views */
   function delAllViews() {
     const affixTags = visitedViews.value.filter(v => v.meta?.affix)
     visitedViews.value = affixTags
     cachedViews.value = []
   }
 
+  /** 删除 Cached View */
   function delCachedView(name: string) {
     const idx = cachedViews.value.indexOf(name)
     if (idx > -1) {

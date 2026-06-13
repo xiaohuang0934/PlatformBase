@@ -10,6 +10,7 @@ const submitting = ref(false)
 
 const form = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 
+/** 验证两次密码是否一致 */
 function validateConfirm(_rule: any, value: string, callback: (error?: Error) => void) {
   if (value !== form.newPassword)
     callback(new Error('两次密码不一致'))
@@ -28,6 +29,7 @@ const rules: FormRules = {
   ],
 }
 
+/** Submit */
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid)

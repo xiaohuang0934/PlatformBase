@@ -12,6 +12,7 @@ const loading = ref(false)
 const menuTree = ref<MenuDto[]>([])
 const expandedIds = ref<Set<string>>(new Set())
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -26,6 +27,7 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
+/** 切换展开/折叠状态 */
 function toggleExpand(id: string) {
   if (expandedIds.value.has(id))
     expandedIds.value.delete(id)
@@ -59,6 +61,7 @@ const formRules: FormRules = {
 /** 可选父级（目录） */
 const parentOptions = computed(() => {
   const result: { label: string, value: string }[] = []
+  /** Walk */
   function walk(items: MenuDto[], depth = 0) {
     for (const item of items) {
       result.push({ label: `${'─'.repeat(depth)} ${item.name}`, value: item.id })
@@ -70,12 +73,14 @@ const parentOptions = computed(() => {
   return result
 })
 
+/** 打开 Create */
 function openCreate(parentId?: string) {
   isEditing.value = false; dialogTitle.value = '新增菜单'
   Object.assign(form, { id: '', name: '', type: 1, parentId: parentId || undefined, path: '', icon: '', permissionCode: '', sortOrder: 100, isVisible: true })
   dialogVisible.value = true
 }
 
+/** 打开 Edit */
 function openEdit(row: any) {
   isEditing.value = true; dialogTitle.value = '编辑菜单'
   Object.assign(form, {
@@ -92,6 +97,7 @@ function openEdit(row: any) {
   dialogVisible.value = true
 }
 
+/** Submit */
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid)
@@ -111,14 +117,17 @@ async function handleSubmit() {
   finally { submitting.value = false }
 }
 
+/** Delete */
 async function handleDelete(row: any) {
   try { await ElMessageBox.confirm(`确定删除菜单 "${row.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
   await menuApi.deleteMenu(row.id); ElMessage.success('已删除'); fetchList()
 }
 
+/** 添加 Child */
 function addChild(parentId: string) { openCreate(parentId) }
 
+/** 获取 Type Label */
 function getTypeLabel(item: any): string {
   return (item.children !== undefined || item.type === 1) ? '目录' : '页面'
 }

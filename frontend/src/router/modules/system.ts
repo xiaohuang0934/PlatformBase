@@ -1,9 +1,11 @@
 import type { RouteRecordRaw } from 'vue-router'
 import type { MenuDto } from '@/types/auth'
 
+/** 将菜单树转换为Vue Router路由表 */
 export function generateDynamicRoutes(menus: MenuDto[]): RouteRecordRaw[] {
   const result: RouteRecordRaw[] = []
 
+  /** Walk */
   function walk(list: MenuDto[]) {
     for (const menu of list) {
       if (menu.path) {
@@ -29,6 +31,7 @@ export function generateDynamicRoutes(menus: MenuDto[]): RouteRecordRaw[] {
   return result
 }
 
+/** 路径片段转合法路由名（kebab→Pascal） */
 function toRouteName(module: string): string {
   return module
     .split('-')
@@ -36,6 +39,7 @@ function toRouteName(module: string): string {
     .join('')
 }
 
+/** 按约定路径解析视图组件 */
 function resolveComponent(module: string) {
   const pascal = toRouteName(module)
   return () => {

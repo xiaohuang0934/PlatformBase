@@ -9,6 +9,7 @@ export function setAccessToken(token: string, expiresIn: number) {
   localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt))
 }
 
+/** 获取 Access Token */
 export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY)
 }
@@ -21,14 +22,17 @@ export function isTokenExpiring(): boolean {
   return Date.now() >= Number(expiresAt)
 }
 
+/** 设置 Refresh Token */
 export function setRefreshToken(token: string) {
   localStorage.setItem(REFRESH_TOKEN_KEY, token)
 }
 
+/** 获取 Refresh Token */
 export function getRefreshToken(): string | null {
   return localStorage.getItem(REFRESH_TOKEN_KEY)
 }
 
+/** 清除所有本地存储的Token */
 export function clearTokens() {
   localStorage.removeItem(ACCESS_TOKEN_KEY)
   localStorage.removeItem(REFRESH_TOKEN_KEY)

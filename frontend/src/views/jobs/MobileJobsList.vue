@@ -5,11 +5,13 @@ import * as jobApi from '@/api/jobs'
 
 const loading = ref(false)
 const list = ref<any[]>([])
+/** 获取 List */
 async function fetchList() {
   loading.value = true; try { const res = await jobApi.getJobList(); list.value = res.data ?? [] }
   catch { ElMessage.error('加载失败') }
   finally { loading.value = false }
 }
+/** Trigger */
 async function handleTrigger(row: any) { await jobApi.triggerJob(row.jobId); ElMessage.success('已手动触发') }
 onMounted(fetchList)
 </script>

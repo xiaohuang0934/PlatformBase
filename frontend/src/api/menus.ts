@@ -12,10 +12,12 @@ export function getMenuList(parentId?: string): Promise<ApiResult<MenuDto[]>> {
   return http.get('/menus', { params: parentId ? { parentId } : {} }).then(res => res.data)
 }
 
+/** 获取 Menu By Id */
 export function getMenuById(id: string): Promise<ApiResult<MenuDto>> {
   return http.get(`/menus/${id}`).then(res => res.data)
 }
 
+/** 创建菜单 */
 export function createMenu(data: {
   name: string
   type: number
@@ -29,6 +31,7 @@ export function createMenu(data: {
   return http.post('/menus', data).then(res => res.data)
 }
 
+/** 更新菜单信息 */
 export function updateMenu(id: string, data: {
   name?: string
   icon?: string
@@ -40,6 +43,7 @@ export function updateMenu(id: string, data: {
   return http.put(`/menus/${id}`, data).then(res => res.data)
 }
 
+/** 删除ete Menu */
 export function deleteMenu(id: string): Promise<ApiResult<null>> {
   return http.delete(`/menus/${id}`).then(res => res.data)
 }

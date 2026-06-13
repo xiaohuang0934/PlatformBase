@@ -24,6 +24,7 @@ const form = reactive({
   roleIds: [] as string[],
 })
 
+/** 加载页面数据 */
 async function loadData() {
   loading.value = true
   try {
@@ -45,6 +46,7 @@ async function loadData() {
   finally { loading.value = false }
 }
 
+/** Submit */
 async function handleSubmit() {
   if (!form.username) { ElMessage.warning('请输入用户名'); return }
   if (!isEdit.value && !form.password) { ElMessage.warning('请输入密码'); return }
@@ -64,6 +66,7 @@ async function handleSubmit() {
   finally { submitting.value = false }
 }
 
+/** Toggle */
 async function handleToggle() {
   if (!user.value)
     return
@@ -78,11 +81,13 @@ async function handleToggle() {
 const showRolePicker = ref(false)
 const selectedRoles = ref<string[]>([])
 
+/** 打开 Role Picker */
 function openRolePicker() {
   selectedRoles.value = [...form.roleIds]
   showRolePicker.value = true
 }
 
+/** 确认角色选择 */
 function confirmRoles() {
   form.roleIds = selectedRoles.value
   showRolePicker.value = false

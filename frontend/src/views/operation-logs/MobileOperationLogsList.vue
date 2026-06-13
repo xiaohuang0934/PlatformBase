@@ -9,6 +9,7 @@ const list = ref<any[]>([])
 const query = reactive({ keyword: '', pageIndex: 1, pageSize: 10 })
 const finished = ref(false)
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -22,6 +23,7 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
+/** 滚动加载更多 */
 function onLoad() { query.pageIndex++; fetchList() }
 onMounted(fetchList)
 </script>

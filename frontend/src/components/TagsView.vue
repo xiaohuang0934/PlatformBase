@@ -13,10 +13,12 @@ const contextMenuVisible = ref(false)
 const contextMenuPosition = ref({ left: 0, top: 0 })
 const selectedTag = ref<any>(null)
 
+/** 判断标签页是否为当前路由 */
 function isActive(tag: any): boolean {
   return tag.path === route.path
 }
 
+/** 关闭 Tag */
 function closeTag(tag: any) {
   const idx = visitedViews.value.findIndex((v: any) => v.path === tag.path)
   if (idx === -1)
@@ -36,15 +38,18 @@ function closeTag(tag: any) {
   }
 }
 
+/** 关闭 Others */
 function closeOthers(tag: any) {
   tagsView.delOthersViews(tag)
 }
 
+/** 关闭 All */
 function closeAll() {
   tagsView.delAllViews()
   router.push('/')
 }
 
+/** Context Menu */
 function handleContextMenu(e: MouseEvent, tag: any) {
   e.preventDefault()
   selectedTag.value = tag
@@ -55,6 +60,7 @@ function handleContextMenu(e: MouseEvent, tag: any) {
   contextMenuVisible.value = true
 }
 
+/** 关闭 Menu */
 function closeMenu() {
   contextMenuVisible.value = false
 }

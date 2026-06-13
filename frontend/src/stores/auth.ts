@@ -18,6 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
   const roles = computed(() => user.value?.roles ?? [])
   const displayName = computed(() => user.value?.username ?? '')
 
+  /** 登录操作：获取Token并持久化 */
   async function loginAction(data: LoginRequest) {
     const res = await authApi.login(data)
     const { accessToken, refreshToken, expiresIn } = res.data
@@ -30,6 +31,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = accessToken
   }
 
+  /** 获取 Current User */
   async function fetchCurrentUser() {
     const [profileRes, permsRes] = await Promise.all([
       authApi.getProfile(),
@@ -39,6 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
     permissionCodes.value = permsRes.data
   }
 
+  /** 登出操作：清除Token和状态 */
   function logoutAction() {
     token.value = ''
     user.value = null
@@ -46,6 +49,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearTokens()
   }
 
+  /** 检查当前用户是否拥有指定权限码 */
   function hasPermission(code: string): boolean {
     return permissionCodes.value.includes(code)
   }

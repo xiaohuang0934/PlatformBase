@@ -6,6 +6,7 @@ import { generateDynamicRoutes } from './modules/system'
 
 const whiteList = ['/login', '/403', '/404']
 
+/** 设置up Permission Guard */
 export function setupPermissionGuard(router: Router) {
   router.beforeEach(async (to: RouteLocationNormalized, _from, next) => {
     const auth = useAuthStore()

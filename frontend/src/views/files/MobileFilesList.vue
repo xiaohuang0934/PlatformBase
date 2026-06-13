@@ -10,6 +10,7 @@ const list = ref<any[]>([])
 const searched = ref(false)
 const query = reactive({ bizType: '', bizId: '' })
 
+/** 获取 List */
 async function fetchList() {
   if (!query.bizType || !query.bizId) { ElMessage.warning('请输入业务类型和业务ID'); return }
   loading.value = true; searched.value = true
@@ -18,6 +19,7 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
+/** Download */
 function handleDownload(row: any) { downloadFile(`/api/v1/files/${row.id}/download`, row.fileName) }
 </script>
 

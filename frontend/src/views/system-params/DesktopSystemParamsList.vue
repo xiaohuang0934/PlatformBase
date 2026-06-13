@@ -11,6 +11,7 @@ const list = ref<any[]>([])
 const total = ref(0)
 const query = reactive({ keyword: '', pageIndex: 1, pageSize: 10 })
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -22,7 +23,9 @@ async function fetchList() {
   }
   finally { loading.value = false }
 }
+/** 搜索 */
 function onSearch() { query.pageIndex = 1; fetchList() }
+/** On Re设置 */
 function onReset() { query.keyword = ''; query.pageIndex = 1; fetchList() }
 
 const dialogVisible = ref(false)
@@ -35,9 +38,12 @@ const formRules: FormRules = {
   value: [{ required: true, message: '请输入值', trigger: 'blur' }],
 }
 
+/** 打开 Create */
 function openCreate() { isEditing.value = false; Object.assign(form, { id: '', code: '', name: '', value: '', category: '', description: '' }); dialogVisible.value = true }
+/** 打开 Edit */
 function openEdit(row: any) { isEditing.value = true; Object.assign(form, { id: row.id, code: row.code, value: row.value, category: row.category || '', description: row.description || '' }); dialogVisible.value = true }
 
+/** Submit */
 async function handleSubmit() {
   submitting.value = true
   try {
@@ -50,12 +56,14 @@ async function handleSubmit() {
   }
   finally { submitting.value = false }
 }
+/** Delete */
 async function handleDelete(row: any) {
   try { await ElMessageBox.confirm(`确定删除参数 "${row.code}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
   await paramApi.deleteParam(row.id); ElMessage.success('已删除'); fetchList()
 }
 
+/** 分页切换 */
 function onPageChange(p: number) { query.pageIndex = p; fetchList() }
 onMounted(fetchList)
 </script>

@@ -8,18 +8,22 @@ export const usePermissionStore = defineStore('permission', () => {
   const menuLoaded = ref(false)
   const routesAdded = ref(false)
 
+  /** 获取 Menus */
   async function fetchMenus() {
     const res = await menuApi.getMenuTree()
     menuTree.value = res.data
     menuLoaded.value = true
   }
 
+  /** 标记 Routes Added */
   function markRoutesAdded() {
     routesAdded.value = true
   }
 
+  /** 扁平化菜单树 */
   function flattenMenus(menus: MenuDto[]): MenuDto[] {
     const result: MenuDto[] = []
+    /** Walk */
     function walk(list: MenuDto[]) {
       for (const item of list) {
         result.push(item)
@@ -31,6 +35,7 @@ export const usePermissionStore = defineStore('permission', () => {
     return result
   }
 
+  /** Re设置 */
   function reset() {
     menuTree.value = []
     menuLoaded.value = false

@@ -20,6 +20,7 @@ const appItems = computed(() => {
   return items
 })
 
+/** 打开 App */
 function openApp(item: { path: string }) { router.push(item.path) }
 </script>
 

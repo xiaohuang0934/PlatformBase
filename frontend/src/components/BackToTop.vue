@@ -4,10 +4,12 @@ import { scrollTo } from '@/utils/scroll-to'
 
 const visible = ref(false)
 
+/** Scroll */
 function handleScroll() {
   visible.value = window.scrollY > 300
 }
 
+/** 滚动到顶部 */
 function scrollToTop() {
   scrollTo(0, 300)
 }

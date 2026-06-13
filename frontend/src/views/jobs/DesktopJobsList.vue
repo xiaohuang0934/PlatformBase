@@ -8,21 +8,27 @@ const auth = useAuthStore()
 const loading = ref(false)
 const list = ref<any[]>([])
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try { const res = await jobApi.getJobList(); list.value = res.data ?? [] }
   finally { loading.value = false }
 }
 
+/** Start */
 async function handleStart(row: any) { await jobApi.startJob(row.jobId); ElMessage.success('已启动'); fetchList() }
+/** Stop */
 async function handleStop(row: any) { await jobApi.stopJob(row.jobId); ElMessage.success('已停止'); fetchList() }
+/** Trigger */
 async function handleTrigger(row: any) { await jobApi.triggerJob(row.jobId); ElMessage.success('已手动触发') }
 
 const cronDialog = ref(false)
 const cronTarget = ref<any>(null)
 const cronValue = ref('')
 
+/** 打开 Cron */
 function openCron(row: any) { cronTarget.value = row; cronValue.value = row.cron || ''; cronDialog.value = true }
+/** Cron Save */
 async function handleCronSave() { await jobApi.updateJobCron(cronTarget.value.jobId, cronValue.value); ElMessage.success('Cron 已更新'); cronDialog.value = false; fetchList() }
 
 onMounted(fetchList)

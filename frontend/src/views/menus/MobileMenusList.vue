@@ -9,6 +9,7 @@ const router = useRouter()
 const loading = ref(false)
 const menuTree = ref<MenuDto[]>([])
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -20,7 +21,9 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
+/** 进入子菜单页面 */
 function goChildren(item: MenuDto) { router.push(`/m/menus/${item.id}/children?title=${encodeURIComponent(item.name)}`) }
+/** 跳转到编辑页 */
 function goEdit(id?: string) { router.push(id ? `/m/menus/${id}/edit` : '/m/menus/create') }
 
 onMounted(fetchList)

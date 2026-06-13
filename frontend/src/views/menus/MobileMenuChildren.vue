@@ -12,6 +12,7 @@ const parentName = ref('')
 const loading = ref(false)
 const children = ref<MenuDto[]>([])
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -23,12 +24,14 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
+/** 跳转到编辑页 */
 function goEdit(childId?: string) {
   if (childId)
     router.push(`/m/menus/${childId}/edit`)
   else router.push(`/m/menus/create?parentId=${parentId}`)
 }
 
+/** Delete */
 async function handleDelete(row: MenuDto) {
   try { await ElMessageBox.confirm(`确定删除 "${row.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }

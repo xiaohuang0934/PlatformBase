@@ -9,16 +9,19 @@ export function useTableSelection<T extends { id: string }>(tableRef?: Ref<any>)
   const selectedCount = computed(() => selectedRows.value.length)
   const hasSelection = computed(() => selectedRows.value.length > 0)
 
+  /** Selection Change */
   function handleSelectionChange(rows: T[]) {
     selectedRows.value = rows
   }
 
+  /** Toggle Row */
   function toggleRow(row: T) {
     if (!_tableRef.value)
       return
     _tableRef.value.toggleRowSelection(row)
   }
 
+  /** Clear Selection */
   function clearSelection() {
     _tableRef.value?.clearSelection()
   }

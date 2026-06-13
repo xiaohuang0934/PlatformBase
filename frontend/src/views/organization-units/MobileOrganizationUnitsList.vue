@@ -5,23 +5,29 @@ import { useRouter } from 'vue-router'
 import * as orgApi from '@/api/organization'
 
 const router = useRouter(); const loading = ref(false); const list = ref<any[]>([]); const flatList = ref<any[]>([])
+/** 扁平化树形数据 */
 function flatten(items: any[]): any[] {
   const r: any[] = []; for (const item of items) {
     r.push(item); if (item.children?.length)
       r.push(...flatten(item.children))
   } return r
 }
+/** 获取 List */
 async function fetchList() {
   loading.value = true; try { const res = await orgApi.getOrgUnitTree(); list.value = res.data ?? []; flatList.value = flatten(list.value) }
   catch { ElMessage.error('加载失败') }
   finally { loading.value = false }
 }
+/** 获取 Indent */
 function getIndent(item: any): number { return (item.path?.split('/').length ?? 1) - 1 }
+/** 跳转到详情页 */
 function goDetail(id: string) { router.push(`/m/organization-units/${id}`) }
 onMounted(fetchList)
 
 const showForm = ref(false); const form = reactive({ name: '', parentId: '' as string | undefined, description: '' }); const submitting = ref(false)
+/** 打开 Create */
 function openCreate() { Object.assign(form, { name: '', parentId: undefined, description: '' }); showForm.value = true }
+/** Create */
 async function handleCreate() {
   if (!form.name)
     return; submitting.value = true; try { await orgApi.createOrgUnit({ name: form.name, parentId: form.parentId, description: form.description || undefined }); ElMessage.success('创建成功'); showForm.value = false; fetchList() }

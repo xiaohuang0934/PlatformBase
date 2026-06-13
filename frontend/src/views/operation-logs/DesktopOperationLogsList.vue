@@ -12,6 +12,7 @@ const list = ref<any[]>([])
 const total = ref(0)
 const query = reactive({ keyword: '', pageIndex: 1, pageSize: 10 })
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -23,10 +24,14 @@ async function fetchList() {
   }
   finally { loading.value = false }
 }
+/** 搜索 */
 function onSearch() { query.pageIndex = 1; fetchList() }
+/** On Re设置 */
 function onReset() { query.keyword = ''; query.pageIndex = 1; fetchList() }
+/** 分页切换 */
 function onPageChange(p: number) { query.pageIndex = p; fetchList() }
 
+/** Cleanup */
 async function handleCleanup() {
   await logApi.cleanupLogs(90)
   ElMessage.success('已清理 90 天前的日志')

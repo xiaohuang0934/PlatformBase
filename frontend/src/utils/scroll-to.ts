@@ -4,6 +4,7 @@ export function scrollTo(to: number, duration = 500) {
   const change = to - start
   const startTime = performance.now()
 
+  /** Animate Scroll */
   function animateScroll(currentTime: number) {
     const elapsed = currentTime - startTime
     const progress = Math.min(elapsed / duration, 1)

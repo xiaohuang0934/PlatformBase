@@ -25,11 +25,13 @@ const query = reactive({
 })
 
 const allRoles = ref<RoleDto[]>([])
+/** 加载角色列表（供选择器使用） */
 async function loadRoles() {
   const res = await getRoleList({ pageSize: 200 })
   allRoles.value = res.data.items
 }
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -47,7 +49,9 @@ async function fetchList() {
   }
   finally { loading.value = false }
 }
+/** 搜索 */
 function onSearch() { query.pageIndex = 1; fetchList() }
+/** On Re设置 */
 function onReset() { query.keyword = ''; query.isActive = undefined; query.pageIndex = 1; fetchList() }
 
 // 批量操作
@@ -65,6 +69,7 @@ async function batchDelete() {
   finally { loading.value = false }
 }
 
+/** 批量切换状态 */
 async function batchToggle(isActive: boolean) {
   loading.value = true
   try {
@@ -90,18 +95,21 @@ const formRules: FormRules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
 
+/** 打开 Create */
 function openCreate() {
   isEditing.value = false; dialogTitle.value = '新增用户'
   Object.assign(form, { id: undefined, username: '', password: '', email: '', phoneNumber: '', roleIds: [] })
   formRules.password![0].required = true; dialogVisible.value = true
 }
 
+/** 打开 Edit */
 function openEdit(row: UserDto) {
   isEditing.value = true; dialogTitle.value = '编辑用户'; formRules.password![0].required = false
   Object.assign(form, { id: row.id, username: row.username, password: '', email: row.email || '', phoneNumber: row.phoneNumber || '', roleIds: row.roles || [] })
   dialogVisible.value = true
 }
 
+/** Submit */
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid)
@@ -123,12 +131,14 @@ async function handleSubmit() {
   finally { submitting.value = false }
 }
 
+/** Delete */
 async function handleDelete(row: UserDto) {
   try { await ElMessageBox.confirm(`确定删除用户 "${row.username}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
   await userApi.deleteUser(row.id); ElMessage.success('已删除'); fetchList()
 }
 
+/** Toggle */
 async function handleToggle(row: UserDto) {
   await userApi.toggleUser(row.id)
   ElMessage.success(row.isActive ? '已禁用' : '已启用'); fetchList()
@@ -138,14 +148,18 @@ async function handleToggle(row: UserDto) {
 const pwdDialogVisible = ref(false)
 const pwdTargetUser = ref<UserDto | null>(null)
 const newPassword = ref('')
+/** 打开 Re设置 Pwd */
 function openResetPwd(row: UserDto) { pwdTargetUser.value = row; newPassword.value = ''; pwdDialogVisible.value = true }
+/** Re设置 Pwd */
 async function handleResetPwd() {
   if (!newPassword.value || !pwdTargetUser.value)
     return
   await userApi.resetPassword(pwdTargetUser.value.id, newPassword.value); ElMessage.success('密码已重置'); pwdDialogVisible.value = false
 }
 
+/** 分页切换 */
 function onPageChange(p: number) { query.pageIndex = p; fetchList() }
+/** Format Roles */
 function formatRoles(roles: string[]) { return roles?.join(' / ') || '-' }
 
 onMounted(() => { loadRoles(); fetchList() })

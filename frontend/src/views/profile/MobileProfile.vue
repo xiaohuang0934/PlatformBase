@@ -9,6 +9,7 @@ const auth = useAuthStore()
 const permission = usePermissionStore()
 const theme = useThemeStore()
 
+/** Logout */
 function handleLogout() {
   auth.logoutAction()
   permission.reset()

@@ -23,6 +23,7 @@ export function deepClone<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj))
 }
 
+/** 格式化时间字符串 */
 export function parseTime(time: string, format = '{y}-{m}-{d} {h}:{i}:{s}'): string {
   const date = new Date(time)
   const map: Record<string, number> = {

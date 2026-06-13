@@ -10,6 +10,7 @@ const loading = ref(true); const role = ref<any>(null)
 
 const form = reactive({ name: '', description: '' }); const saving = ref(false)
 
+/** 加载数据 */
 async function load() {
   loading.value = true
   try { const res = await roleApi.getRoleById(id); role.value = res.data; Object.assign(form, { name: res.data.name, description: res.data.description || '' }) }
@@ -17,6 +18,7 @@ async function load() {
   finally { loading.value = false }
 }
 
+/** Save */
 async function handleSave() {
   if (!form.name)
     return; saving.value = true
@@ -25,6 +27,7 @@ async function handleSave() {
   finally { saving.value = false }
 }
 
+/** Delete */
 async function handleDelete() {
   try { await ElMessageBox.confirm(`确定删除 "${role.value?.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }

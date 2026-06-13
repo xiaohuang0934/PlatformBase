@@ -44,6 +44,7 @@ const breadcrumbs = computed<BreadcrumbItem[]>(() => {
   return items
 })
 
+/** Click */
 function handleClick(item: BreadcrumbItem) {
   if (item.path && item.path !== route.path) {
     router.push(item.path)

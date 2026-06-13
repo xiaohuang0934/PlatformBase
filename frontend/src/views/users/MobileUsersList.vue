@@ -12,6 +12,7 @@ const list = ref<UserDto[]>([])
 const query = reactive({ keyword: '', isActive: undefined as boolean | undefined, pageIndex: 1, pageSize: 10 })
 const finished = ref(false)
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -26,9 +27,13 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
+/** 搜索 */
 function onSearch() { query.pageIndex = 1; fetchList() }
+/** 筛选条件变更 */
 function onFilterChange() { query.pageIndex = 1; fetchList() }
+/** 滚动加载更多 */
 function onLoad() { query.pageIndex++; fetchList() }
+/** 跳转到详情页 */
 function goDetail(id: string) { router.push(`/m/users/${id}/edit`) }
 
 onMounted(fetchList)

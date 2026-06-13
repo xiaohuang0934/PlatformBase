@@ -6,6 +6,7 @@ import * as dictApi from '@/api/data-dict'
 
 const route = useRoute(); const router = useRouter(); const id = route.params.id as string
 const loading = ref(true); const item = ref<any>(null)
+/** 加载数据 */
 async function load() {
   loading.value = true; try { const res = await dictApi.getDictItems(id); item.value = res.data }
   catch { ElMessage.error('加载失败') }

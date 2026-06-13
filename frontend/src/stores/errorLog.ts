@@ -12,6 +12,7 @@ export interface ErrorLogItem {
 export const useErrorLogStore = defineStore('errorLog', () => {
   const logs = ref<ErrorLogItem[]>([])
 
+  /** 添加 Error Log */
   function addErrorLog(err: Error, vm: any, info: string) {
     logs.value.push({
       err,
@@ -22,6 +23,7 @@ export const useErrorLogStore = defineStore('errorLog', () => {
     })
   }
 
+  /** 清空错误日志 */
   function clearErrorLog() {
     logs.value = []
   }

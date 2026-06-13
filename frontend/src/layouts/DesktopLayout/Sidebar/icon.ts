@@ -75,6 +75,7 @@ const iconLookup: Record<string, Component> = {
   Menu,
 }
 
+/** 根据图标名解析为Vue组件 */
 export function resolveIcon(name: string | null): Component | null {
   if (!name)
     return null

@@ -11,6 +11,7 @@ const route = useRoute()
 const isExpanded = ref(false)
 const hasChildren = computed(() => !!(props.menu.children?.length))
 
+/** Click */
 function handleClick() {
   if (!hasChildren.value && props.menu.path)
     return
@@ -20,10 +21,12 @@ function handleClick() {
   }
 }
 
+/** 获取 Children */
 function getChildren(): MenuDto[] {
   return props.menu.children?.filter(c => c.path) ?? []
 }
 
+/** 判断子菜单项是否当前激活 */
 function isChildActive(childPath: string): boolean {
   return route.path === childPath
 }

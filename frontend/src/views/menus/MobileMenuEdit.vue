@@ -27,6 +27,7 @@ const form = reactive({
   isVisible: true,
 })
 
+/** 加载页面数据 */
 async function loadData() {
   loading.value = true
   try {
@@ -62,6 +63,7 @@ async function loadData() {
   finally { loading.value = false }
 }
 
+/** Save */
 async function handleSave() {
   if (!form.name) { ElMessage.warning('请输入菜单名称'); return }
   saving.value = true
@@ -80,6 +82,7 @@ async function handleSave() {
   finally { saving.value = false }
 }
 
+/** Delete */
 async function handleDelete() {
   try { await ElMessageBox.confirm('确定删除该菜单吗？', '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }

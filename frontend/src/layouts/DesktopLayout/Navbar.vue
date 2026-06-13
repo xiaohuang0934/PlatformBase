@@ -18,6 +18,7 @@ const theme = useThemeStore()
 const settings = useSettingsStore()
 const showPwdDialog = ref(false)
 
+/** Logout */
 async function handleLogout() {
   try {
     await ElMessageBox.confirm('确定要退出登录吗？', '提示', {

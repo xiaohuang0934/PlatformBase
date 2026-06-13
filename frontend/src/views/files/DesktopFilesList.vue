@@ -12,6 +12,7 @@ const list = ref<any[]>([])
 const searched = ref(false)
 const query = reactive({ bizType: '', bizId: '' })
 
+/** 获取 List */
 async function fetchList() {
   if (!query.bizType || !query.bizId) {
     ElMessage.warning('请输入业务类型和业务ID')
@@ -26,6 +27,7 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
+/** Delete */
 async function handleDelete(row: any) {
   try { await ElMessageBox.confirm(`确定删除文件 "${row.fileName}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
@@ -34,6 +36,7 @@ async function handleDelete(row: any) {
   }
   catch { ElMessage.error('删除失败，请重试') }
 }
+/** Download */
 function handleDownload(row: any) { downloadFile(`/api/v1/files/${row.id}/download`, row.fileName) }
 </script>
 

@@ -12,6 +12,7 @@ const loading = ref(false)
 const list = ref<any[]>([])
 const flatList = ref<any[]>([])
 
+/** 扁平化树形数据 */
 function flatten(items: any[]): any[] {
   const result: any[] = []
   for (const item of items) {
@@ -22,6 +23,7 @@ function flatten(items: any[]): any[] {
   return result
 }
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -44,9 +46,12 @@ const form = reactive({ id: '', name: '', parentId: '' as string | undefined, de
 const rules: FormRules = { name: [{ required: true, message: '请输入组织名称', trigger: 'blur' }] }
 const parentOptions = computed(() => flatList.value.map(m => ({ label: m.name, value: m.id })))
 
+/** 打开 Create */
 function openCreate() { isEditing.value = false; dialogTitle.value = '新增组织'; Object.assign(form, { id: '', name: '', parentId: undefined, description: '' }); dialogVisible.value = true }
+/** 打开 Edit */
 function openEdit(row: any) { isEditing.value = true; dialogTitle.value = '编辑组织'; Object.assign(form, { id: row.id, name: row.name, parentId: row.parentId || undefined, description: row.description || '' }); dialogVisible.value = true }
 
+/** Submit */
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid)
@@ -59,6 +64,7 @@ async function handleSubmit() {
   finally { submitting.value = false }
 }
 
+/** Delete */
 async function handleDelete(row: any) {
   try { await ElMessageBox.confirm(`确定删除 "${row.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }

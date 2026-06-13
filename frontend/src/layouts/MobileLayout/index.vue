@@ -19,6 +19,7 @@ const tabItems = [
 
 const activeTab = ref(0)
 
+/** TabBar切换事件 */
 function onTabChange(index: number) {
   activeTab.value = index
   const item = tabItems[index]
@@ -26,11 +27,13 @@ function onTabChange(index: number) {
     router.push(item.path)
 }
 
+/** 抽屉导航跳转 */
 function goTo(path: string) {
   drawerVisible.value = false
   router.push(path)
 }
 
+/** Logout */
 function handleLogout() {
   drawerVisible.value = false
   auth.logoutAction()
@@ -38,6 +41,7 @@ function handleLogout() {
   router.push('/login')
 }
 
+/** 返回上一页 */
 function goBack() {
   if (window.history.length > 1)
     router.back()

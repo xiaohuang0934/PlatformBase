@@ -15,6 +15,7 @@ const auth = useAuthStore()
 const total = ref(0)
 const query = reactive({ keyword: '', pageIndex: 1, pageSize: 10 })
 
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
@@ -26,9 +27,12 @@ async function fetchList() {
   }
   finally { loading.value = false }
 }
+/** 搜索 */
 function onSearch() { query.pageIndex = 1; fetchList() }
+/** On Re设置 */
 function onReset() { query.keyword = ''; query.pageIndex = 1; fetchList() }
 
+/** 批量删除 */
 async function batchDelete() {
   try { await ElMessageBox.confirm(`确定删除选中的 ${sel.selectedCount.value} 个租户吗？`, '批量删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
@@ -51,9 +55,12 @@ const submitting = ref(false)
 const form = reactive({ id: '', name: '', code: '', description: '' })
 const rules: FormRules = { name: [{ required: true, message: '请输入租户名称', trigger: 'blur' }], code: [{ required: true, message: '请输入租户编码', trigger: 'blur' }] }
 
+/** 打开 Create */
 function openCreate() { isEditing.value = false; dialogTitle.value = '新增租户'; Object.assign(form, { id: '', name: '', code: '', description: '' }); dialogVisible.value = true }
+/** 打开 Edit */
 function openEdit(row: any) { isEditing.value = true; dialogTitle.value = '编辑租户'; Object.assign(form, { id: row.id, name: row.name, code: row.code, description: row.description || '' }); dialogVisible.value = true }
 
+/** Submit */
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid)
@@ -69,12 +76,14 @@ async function handleSubmit() {
   finally { submitting.value = false }
 }
 
+/** Delete */
 async function handleDelete(row: any) {
   try { await ElMessageBox.confirm(`确定删除租户 "${row.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
   await tenantApi.deleteTenant(row.id); ElMessage.success('已删除'); fetchList()
 }
 
+/** 分页切换 */
 function onPageChange(p: number) { query.pageIndex = p; fetchList() }
 onMounted(fetchList)
 </script>

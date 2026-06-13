@@ -9,6 +9,7 @@ const loading = ref(true); const item = ref<any>(null)
 
 const form = reactive({ value: '', description: '' }); const saving = ref(false)
 
+/** 加载数据 */
 async function load() {
   loading.value = true
   try { const res = await paramApi.getParamByCode(id); item.value = res.data; Object.assign(form, { value: res.data.value, description: res.data.description || '' }) }
@@ -16,12 +17,14 @@ async function load() {
   finally { loading.value = false }
 }
 
+/** Save */
 async function handleSave() {
   if (!form.value)
     return; saving.value = true; try { await paramApi.updateParam(id, { value: form.value, description: form.description || undefined }); ElMessage.success('保存成功') }
   catch { ElMessage.error('保存失败') }
   finally { saving.value = false }
 }
+/** Delete */
 async function handleDelete() {
   try { await ElMessageBox.confirm(`确定删除 "${item.value?.code}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }; try { await paramApi.deleteParam(id); ElMessage.success('已删除'); router.back() }

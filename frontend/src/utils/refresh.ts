@@ -65,6 +65,7 @@ export async function refreshAccessToken(): Promise<string> {
   }
 }
 
+/** 强制跳转登录页 */
 export function redirectToLogin() {
   clearTokens()
   window.location.href = '/login'

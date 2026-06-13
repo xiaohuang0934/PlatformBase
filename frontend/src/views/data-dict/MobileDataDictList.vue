@@ -6,6 +6,7 @@ import * as dictApi from '@/api/data-dict'
 
 const router = useRouter(); const loading = ref(false); const list = ref<any[]>([]); const finished = ref(false)
 const keyword = ref(''); const pageIndex = ref(1)
+/** 获取 List */
 async function fetchList() {
   loading.value = true; try {
     const res = await dictApi.getDictTypes({ keyword: keyword.value || undefined, pageIndex: pageIndex.value, pageSize: 10 }); const items = res.data.items ?? []; if (pageIndex.value === 1)
@@ -14,13 +15,18 @@ async function fetchList() {
   catch { ElMessage.error('加载失败') }
   finally { loading.value = false }
 }
+/** 搜索 */
 function onSearch() { pageIndex.value = 1; fetchList() }
+/** 滚动加载更多 */
 function onLoad() { pageIndex.value++; fetchList() }
+/** 跳转到详情页 */
 function goDetail(id: string) { router.push(`/m/data-dict/${id}`) }
 onMounted(fetchList)
 
 const showForm = ref(false); const form = reactive({ typeName: '', typeCode: '', description: '' }); const submitting = ref(false)
+/** 打开 Create */
 function openCreate() { Object.assign(form, { typeName: '', typeCode: '', description: '' }); showForm.value = true }
+/** Create */
 async function handleCreate() {
   if (!form.typeName || !form.typeCode)
     return; submitting.value = true; try { await dictApi.createDictType({ typeName: form.typeName, typeCode: form.typeCode, description: form.description || undefined }); ElMessage.success('创建成功'); showForm.value = false; pageIndex.value = 1; list.value = []; fetchList() }

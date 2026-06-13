@@ -11,6 +11,7 @@ const userId = route.params.id as string
 const loading = ref(true)
 const user = ref<any>(null)
 
+/** 加载详情数据 */
 async function loadDetail() {
   loading.value = true
   try { const res = await userApi.getUserById(userId); user.value = res.data }
@@ -18,8 +19,10 @@ async function loadDetail() {
   finally { loading.value = false }
 }
 
+/** 跳转到编辑页 */
 function goEdit() { router.push(`/m/users/${userId}/edit`) }
 
+/** Toggle */
 async function handleToggle() {
   if (!user.value)
     return
@@ -27,6 +30,7 @@ async function handleToggle() {
   catch { ElMessage.error('操作失败') }
 }
 
+/** Delete */
 async function handleDelete() {
   try { await ElMessageBox.confirm(`确定删除用户 "${user.value?.username}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
