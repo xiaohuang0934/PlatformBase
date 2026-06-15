@@ -5,12 +5,13 @@ using PlatformBase.Application.Dtos.UserModule;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
+using PlatformBase.Core.Services;
 using PlatformBase.Host.Authorization;
 
 namespace PlatformBase.Host.Controllers.OrganizationModule;
 
 /// <summary>
-/// 组织架构管理 API
+/// 组织架构管理 API（懒加载模式）
 /// </summary>
 [ApiVersion("1.0")]
 [ApiController]
@@ -18,14 +19,43 @@ namespace PlatformBase.Host.Controllers.OrganizationModule;
 public class OrganizationUnitController : ControllerBase
 {
     private readonly IOrganizationUnitService _service;
+    private readonly ICurrentUserContext _currentUser;
 
-    public OrganizationUnitController(IOrganizationUnitService service) => _service = service;
+    public OrganizationUnitController(IOrganizationUnitService service, ICurrentUserContext currentUser)
+    {
+        _service = service;
+        _currentUser = currentUser;
+    }
 
-    /// <summary>获取部门树形列表</summary>
+    /// <summary>
+    /// 懒加载获取部门数据
+    /// - 无参数 → 返回租户摘要列表（顶层节点）
+    /// - tenantId 指定 → 返回该租户的一级部门或指定父级的子部门
+    /// - mode=tree → 返回全量部门树（用于 OrgSelector 等组件）
+    /// </summary>
     [HttpGet]
     [Permission("org-units.list")]
-    public async Task<ApiResult<IReadOnlyList<OrgUnitNode>>> GetTree(CancellationToken ct)
-        => ApiResult<IReadOnlyList<OrgUnitNode>>.Ok(await _service.GetTreeAsync(ct));
+    public async Task<ApiResult<IReadOnlyList<object>>> GetTree(
+        [FromQuery] Guid? tenantId,
+        [FromQuery] Guid? parentId,
+        [FromQuery] string? mode,
+        CancellationToken ct)
+    {
+        if (mode == "tree")
+        {
+            var tree = await _service.GetFullTreeAsync(ct);
+            return ApiResult<IReadOnlyList<object>>.Ok(tree.Cast<object>().ToList());
+        }
+
+        if (tenantId == null && parentId == null)
+        {
+            var summaries = await _service.GetTenantSummariesAsync(ct);
+            return ApiResult<IReadOnlyList<object>>.Ok(summaries.Cast<object>().ToList());
+        }
+
+        var nodes = await _service.GetTreeAsync(tenantId, parentId, ct);
+        return ApiResult<IReadOnlyList<object>>.Ok(nodes.Cast<object>().ToList());
+    }
 
     /// <summary>查询部门详情（含物化路径）</summary>
     [HttpGet("{id:guid}")]
@@ -42,6 +72,10 @@ public class OrganizationUnitController : ControllerBase
     [Permission("org-units.create")]
     public async Task<ApiResult<object>> Create([FromBody] OrgUnitDto dto, CancellationToken ct)
     {
+        // 平台管理员指定租户时，切换当前租户视角
+        if (dto.TenantId != null && _currentUser.UserType == UserType.PlatformAdmin)
+            _currentUser.SetCurrentTenant(dto.TenantId);
+
         var created = await _service.CreateAsync(dto.Name, dto.Code, dto.ParentId, dto.SortOrder ?? 0, ct);
         return ApiResult<object>.Ok(new { created.Id, created.Name, created.Code, created.Path });
     }
@@ -90,6 +124,7 @@ public class OrgUnitDto
 {
     [Required] public string Name { get; set; } = string.Empty;
     [Required] public string Code { get; set; } = string.Empty;
+    public Guid? TenantId { get; set; }
     public Guid? ParentId { get; set; }
     public int? SortOrder { get; set; }
 }

@@ -4,9 +4,14 @@ import http from './index'
 
 const BASE = '/organization-units'
 
-/** 获取部门树 */
+/** 获取部门全量树（用于 OrgSelector 组件） */
 export function getOrgUnitTree(): Promise<ApiResult<any[]>> {
-  return http.get(BASE).then(res => res.data)
+  return http.get(BASE, { params: { mode: 'tree' } }).then(res => res.data)
+}
+
+/** 懒加载：租户摘要（无参）或指定租户/父级的部门列表 */
+export function getOrgNodes(params?: { tenantId?: string, parentId?: string }): Promise<ApiResult<any[]>> {
+  return http.get(BASE, { params }).then(res => res.data)
 }
 
 /** 获取部门详情 */
@@ -15,7 +20,7 @@ export function getOrgUnitById(id: string): Promise<ApiResult<any>> {
 }
 
 /** 创建部门 */
-export function createOrgUnit(data: { name: string, parentId?: string, description?: string }): Promise<ApiResult<any>> {
+export function createOrgUnit(data: { name: string, code: string, tenantId?: string, parentId?: string, description?: string }): Promise<ApiResult<any>> {
   return http.post(BASE, data).then(res => res.data)
 }
 

@@ -25,11 +25,74 @@ public class OrganizationUnitService : IOrganizationUnitService
         _currentUser = currentUser;
     }
 
-    public async Task<IReadOnlyList<OrgUnitNode>> GetTreeAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<OrgUnitNode>> GetFullTreeAsync(CancellationToken ct = default)
     {
         var all = await _uow.Repository<OrganizationUnit>()
             .FindAsync(o => o.IsEnabled, ct);
         return BuildTree(all);
+    }
+
+    public async Task<IReadOnlyList<TenantOrgSummary>> GetTenantSummariesAsync(CancellationToken ct = default)
+    {
+        // 收集目标租户 ID 列表
+        var targetIds = _currentUser.CurrentTenantIds;
+        if (targetIds.Count == 0) return [];
+
+        // 查询租户信息
+        var tenants = await _context.Set<Tenant>()
+            .AsNoTracking()
+            .Where(t => targetIds.Contains(t.Id) && t.IsEnabled)
+            .ToListAsync(ct);
+
+        // 批量检查每个租户是否有部门
+        var tenantIds = tenants.Select(t => t.Id).ToList();
+        var orgTenantIds = await _context.Set<OrganizationUnit>()
+            .AsNoTracking()
+            .Where(o => tenantIds.Contains(o.TenantId) && o.IsEnabled)
+            .Select(o => o.TenantId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        var hasOrgSet = new HashSet<Guid>(orgTenantIds);
+
+        return tenants.Select(t => new TenantOrgSummary
+        {
+            TenantId = t.Id,
+            TenantName = t.Name,
+            TenantCode = t.Code,
+            HasChildren = hasOrgSet.Contains(t.Id)
+        }).ToList();
+    }
+
+    public async Task<IReadOnlyList<OrgUnitNode>> GetTreeAsync(Guid? tenantId = null, Guid? parentId = null, CancellationToken ct = default)
+    {
+        var orgs = await _uow.Repository<OrganizationUnit>()
+            .FindAsync(o => o.IsEnabled
+                && (tenantId == null || o.TenantId == tenantId)
+                && (parentId == null ? o.ParentId == null : o.ParentId == parentId), ct);
+
+        var result = orgs.OrderBy(o => o.SortOrder).Select(o => new OrgUnitNode
+        {
+            Id = o.Id, Name = o.Name, Code = o.Code, ParentId = o.ParentId, SortOrder = o.SortOrder
+        }).ToList();
+
+        // 批量检查每个节点是否有子级
+        if (result.Count > 0)
+        {
+            var ids = result.Select(n => n.Id).ToList();
+            var parentIds = await _context.Set<OrganizationUnit>()
+                .AsNoTracking()
+                .Where(o => o.ParentId != null && ids.Contains(o.ParentId.Value) && o.IsEnabled)
+                .Select(o => o.ParentId!.Value)
+                .Distinct()
+                .ToListAsync(ct);
+
+            var hasChildSet = new HashSet<Guid>(parentIds);
+            foreach (var node in result)
+                node.HasChildren = hasChildSet.Contains(node.Id);
+        }
+
+        return result;
     }
 
     public async Task<OrganizationUnit?> GetByIdAsync(Guid id, CancellationToken ct = default)
