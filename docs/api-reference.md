@@ -17,27 +17,77 @@
 
 | 方法 | 端点 | 权限 | 说明 |
 |------|------|------|------|
-| `GET` | `/users` | `users.list` | 分页列表（keyword, isActive） |
-| `GET` | `/users/{id}` | `users.list` | 详情（含角色） |
-| `POST` | `/users` | `users.create` | 创建（含角色分配） |
-| `PUT` | `/users/{id}` | `users.edit` | 更新 |
+| `GET` | `/users?keyword=&isActive=&tenantIds=` | `users.list` | 分页列表（支持多租户查询） |
+| `GET` | `/users/{id}` | `users.list` | 详情（含角色 + 部门列表） |
+| `POST` | `/users` | `users.create` | 创建（必填：角色IDs + 部门IDs） |
+| `PUT` | `/users/{id}` | `users.edit` | 更新（支持 UserType + 部门） |
 | `DELETE` | `/users/{id}` | `users.delete` | 软删除 |
 | `PATCH` | `/users/{id}/toggle` | `users.edit` | 启用/禁用 |
 | `POST` | `/users/{id}/reset-password` | `users.edit` | 管理员重置密码 |
 | `GET` | `/users/{id}/roles` | `users.list` | 查看角色 |
 | `PUT` | `/users/{id}/roles` | `users.edit` | 分配角色（全量替换） |
+| `GET` | `/users/{id}/organizations` | `users.list` | 查看部门 |
+| `PUT` | `/users/{id}/organizations` | `users.edit` | 分配部门（全量替换） |
+| `POST` | `/users/{id}/organizations/{orgId}` | `users.edit` | 添加用户到部门 |
+| `DELETE` | `/users/{id}/organizations/{orgId}` | `users.edit` | 将用户移出部门 |
+
+### 创建用户请求体 (CreateUserDto)
+
+```json
+{
+  "username": "zhangsan",
+  "password": "Pass@123",
+  "email": "zhangsan@example.com",
+  "phoneNumber": "13800138000",
+  "tenantId": "guid",             // 平台管理员必填，租户管理员忽略
+  "userType": 2,                  // 1=PlatformAdmin / 2=TenantAdmin / 3=TenantUser
+  "roleIds": ["guid1", "guid2"],  // 必填
+  "organizationUnitIds": ["guid"] // 必填
+}
+```
+
+### 用户详情响应 (UserDto)
+
+```json
+{
+  "id": "guid",
+  "username": "zhangsan",
+  "email": "zhangsan@example.com",
+  "emailConfirmed": false,
+  "phoneNumber": "13800138000",
+  "isActive": true,
+  "userType": 3,
+  "roles": ["Admin"],
+  "organizationUnits": [
+    { "id": "guid", "name": "技术部", "code": "tech", "parentId": null, "sortOrder": 1 }
+  ],
+  "createdAt": "2026-01-01T00:00:00Z",
+  "updatedAt": null
+}
+```
 
 ## 角色管理 (Roles)
 
 | 方法 | 端点 | 权限 | 说明 |
 |------|------|------|------|
-| `GET` | `/roles?keyword=&isSystem=` | `roles.list` | 分页列表（支持 isSystem 筛选，返回 code/isSystem 字段） |
+| `GET` | `/roles?keyword=&isSystem=&tenantIds=` | `roles.list` | 分页列表（支持多租户查询） |
 | `GET` | `/roles/{id}` | `roles.list` | 详情（含 code/isSystem） |
-| `POST` | `/roles` | `roles.create` | 创建（code 必填） |
+| `POST` | `/roles` | `roles.create` | 创建（支持指定 TenantId 创建全局/租户级角色） |
 | `PUT` | `/roles/{id}` | `roles.edit` | 更新 |
 | `DELETE` | `/roles/{id}` | `roles.delete` | 删除（有关联用户则拒绝） |
 | `GET` | `/roles/{id}/permissions` | `roles.list` | 查看权限编码列表 |
 | `PUT` | `/roles/{id}/permissions` | `roles.edit` | 分配权限（全量替换） |
+
+### 创建角色请求体 (CreateRoleDto)
+
+```json
+{
+  "name": "运营经理",
+  "code": "operation_manager",
+  "description": "运营部门经理角色",
+  "tenantId": null              // null=全局角色 / guid=租户级角色
+}
+```
 
 ## 权限管理 (Permissions)
 
@@ -59,8 +109,8 @@
 | `GET` | `/system-params` | `system-params.list` | 分页列表（Category, IsEnabled） |
 | `GET` | `/system-params/detail/{id}` | `system-params.list` | 详情 |
 | `POST` | `/system-params` | `system-params.create` | 创建 |
-| `PUT` | `/system-params/{id}` | `system-params.edit` | 更新 |
-| `DELETE` | `/system-params/{id}` | `system-params.delete` | 软删除 |
+| `PUT` | `/system-params/{id}` | `系统-params.edit` | 更新 |
+| `DELETE` | `/系统-params/{id}` | `系统-params.delete` | 软删除 |
 
 ## 租户参数 (Tenant Params)
 
@@ -102,7 +152,7 @@
 | `GET` | `/menus/tree` | Authorize | 当前用户可访问的菜单树（自动裁剪） |
 | `GET` | `/menus` | `menus.list` | 全部菜单列表（可选 `?parentId=` 按父级筛选） |
 | `GET` | `/menus/{id}` | `menus.list` | 详情 |
-| `POST` | `/menus` | `menus.create` | 创建 |
+| `POST` | `/menus` | `menus.create` | 创建（校验父菜单租户归属） |
 | `PUT` | `/menus/{id}` | `menus.edit` | 更新 |
 | `DELETE` | `/menus/{id}` | `menus.delete` | 软删除 |
 
@@ -115,6 +165,8 @@
 | `POST` | `/organization-units` | `org-units.create` | 创建（自动计算物化路径） |
 | `PUT` | `/organization-units/{id}` | `org-units.edit` | 更新 |
 | `DELETE` | `/organization-units/{id}` | `org-units.delete` | 软删除 |
+| `GET` | `/organization-units/{id}/users` | `org-units.list` | 查询部门下的用户（仅本部门） |
+| `GET` | `/organization-units/{id}/users/with-children?keyword=&isActive=&pageIndex=&pageSize=` | `org-units.list` | 分页查询部门及子级的所有用户 |
 
 ## 租户管理 (Tenants)
 
@@ -125,6 +177,7 @@
 | `POST` | `/tenants` | `tenants.create` | 创建（含 Description） |
 | `PUT` | `/tenants/{id}` | `tenants.edit` | 更新 |
 | `DELETE` | `/tenants/{id}` | `tenants.delete` | 停用 |
+| `GET` | `/tenants/accessible` | Authorize | 当前平台用户可访问的租户列表 |
 | `GET` | `/tenants/{tid}/platform-users` | `tenants.edit` | 查看租户的平台账号 |
 | `POST` | `/tenants/{tid}/platform-users/{uid}` | `tenants.edit` | 分配平台账号到租户 |
 | `DELETE` | `/tenants/{tid}/platform-users/{uid}` | `tenants.edit` | 移除平台账号 |
@@ -154,8 +207,8 @@
 
 | 方法 | 端点 | 权限 | 说明 |
 |------|------|------|------|
-| `GET` | `/import-export/users` | `users.list` | 导出用户 Excel |
-| `POST` | `/import-export/users` | `users.create` | 导入用户 Excel/CSV |
+| `GET` | `/import-export/users?keyword=&isActive=&tenantId=` | `users.list` | 导出用户 Excel（支持按租户过滤） |
+| `POST` | `/import-export/users?tenantId=` | `users.create` | 导入用户 Excel/CSV（平台管理员需指定租户） |
 
 ## 定时任务 (Jobs)
 
@@ -182,7 +235,7 @@
 | 分类 | 数量 |
 |------|:---:|
 | 认证授权 | 5 |
-| 用户管理 | 9 |
+| 用户管理 | 13 |
 | 角色管理 | 7 |
 | 权限管理 | 5 |
 | 系统参数 | 8 |
@@ -190,11 +243,11 @@
 | 数据字典 | 12 |
 | 操作日志 | 3 |
 | 菜单管理 | 6 |
-| 组织架构 | 5 |
-| 租户管理 | 8 |
+| 组织架构 | 7 |
+| 租户管理 | 9 |
 | 消息通知 | 7 |
 | 文件管理 | 4 |
 | 导入导出 | 2 |
 | 定时任务 | 7 |
 | 健康检查 | 1 |
-| **合计** | **92** |
+| **合计** | **99** |

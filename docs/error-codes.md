@@ -20,7 +20,8 @@
 | -1 | 未知错误 | |
 | 400–422 | HTTP 标准码 | 请求参数、认证、权限、资源、验证 |
 | 500 | 服务器错误 | |
-| 1001–1010 | 业务错误（认证） | 重复记录、数据不存在、令牌、用户、密码、锁定、频控 |
+| 1001–1010 | 业务错误（通用/认证） | 重复记录、数据不存在、令牌、用户、密码、锁定、频控、权限拒绝 |
+| 1011–1020 | 业务错误（租户/部门/角色校验） | 租户必填、无权访问、部门/角色归属校验 |
 | 2001 | 基础设施错误 | 数据库错误 |
 | 3001 | 外部服务错误 | 外部服务调用失败 |
 
@@ -39,7 +40,7 @@
 | 422 | `ValidationFailed` | 模型验证失败 | 输入数据格式非法 |
 | 500 | `InternalError` | 服务器内部错误 | 未处理异常兜底 |
 
-### 业务错误（1000 起）
+### 业务错误 — 通用/认证（1000 起）
 
 | 错误码 | 常量名 | 说明 | 使用场景 |
 |:---:|------|------|------|
@@ -52,6 +53,22 @@
 | 1007 | `PasswordMismatch` | 密码错误 | 登录 / 修改密码时密码不匹配 |
 | 1008 | `UserLocked` | 用户已被锁定 | 登录时账户处于锁定状态 |
 | 1009 | `TooManyRequests` | 请求过于频繁 | 登录频控触发 / API 限流 |
+| 1010 | `PermissionDenied` | 权限拒绝 | 权限校验未通过 |
+
+### 业务错误 — 租户/部门/角色校验（1011–1020）
+
+| 错误码 | 常量名 | 说明 | 使用场景 |
+|:---:|------|------|------|
+| 1011 | `TenantIdRequired` | 必须指定租户 | 平台管理员操作时必须指定租户ID |
+| 1012 | `TenantAccessDenied` | 无权访问指定租户 | 平台管理员尝试访问未分配的租户 |
+| 1013 | `OrganizationRequired` | 部门必选 | 创建用户时未指定部门 |
+| 1014 | `RoleRequired` | 角色必选 | 创建用户时未指定角色 |
+| 1015 | `OrganizationNotInTenant` | 部门不属于目标租户 | 指定部门与目标租户不匹配 |
+| 1016 | `RoleNotInTenant` | 角色不属于目标租户 | 指定角色与目标租户不匹配 |
+| 1017 | `CannotCreatePlatformAdmin` | 不能创建平台管理员 | 平台管理员不允许通过API创建同级 |
+| 1018 | `CanOnlyCreateTenantUser` | 只能创建租户普通用户 | 租户管理员只能创建 TenantUser |
+| 1019 | `ParentOrgNotInTenant` | 父部门不属于当前租户 | 创建子部门/菜单时父级归属校验 |
+| 1020 | `NoPermissionToOperate` | 无权执行此操作 | 被禁止的用户类型尝试操作 |
 
 ### 基础设施错误（2000 起）
 
@@ -87,6 +104,18 @@ if (!response.success) {
       break;
     case 1009: // 频控 → 提示稍后
       message.warning(response.message);
+      break;
+    case 1011: // 租户必填 → 提示选择租户
+    case 1012:
+      message.warning(response.message);
+      break;
+    case 1013: // 部门必选 / 角色必选
+    case 1014:
+      message.warning(response.message);
+      break;
+    case 1015: // 部门/角色归属不匹配
+    case 1016:
+      message.error(response.message);
       break;
     default:
       message.error(response.message || '操作失败');
