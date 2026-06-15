@@ -38,21 +38,27 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** 获取当前用户信息 + 权限码 + 可访问租户列表 */
   async function fetchCurrentUser() {
-    const [profileRes, permsRes] = await Promise.all([
-      authApi.getProfile(),
-      authApi.getPermissions(),
-    ])
-    user.value = profileRes.data
-    permissionCodes.value = permsRes.data
+    try {
+      const [profileRes, permsRes] = await Promise.all([
+        authApi.getProfile(),
+        authApi.getPermissions(),
+      ])
+      user.value = profileRes.data
+      permissionCodes.value = permsRes.data
 
-    if (profileRes.data.userType === UserType.PlatformAdmin) {
-      try {
-        const tenantRes = await getAccessibleTenants()
-        tenantIds.value = (tenantRes.data || []).map((t: any) => t.id)
+      if (profileRes.data.userType === UserType.PlatformAdmin) {
+        try {
+          const tenantRes = await getAccessibleTenants()
+          tenantIds.value = (tenantRes.data || []).map((t: any) => t.id)
+        }
+        catch {
+          tenantIds.value = []
+        }
       }
-      catch {
-        tenantIds.value = []
-      }
+    }
+    catch {
+      logoutAction()
+      window.location.href = '/login'
     }
   }
 
