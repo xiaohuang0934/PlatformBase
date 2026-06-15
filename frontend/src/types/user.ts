@@ -1,5 +1,21 @@
 import type { PagedRequest } from './api-result'
 
+/** 部门树节点（匹配后端 OrgUnitNode） */
+export interface OrgUnitNode {
+  id: string
+  name: string
+  code: string
+  parentId: string | null
+  sortOrder: number
+}
+
+/** 用户类型枚举 */
+export enum UserType {
+  PlatformAdmin = 1,
+  TenantAdmin = 2,
+  TenantUser = 3,
+}
+
 /** 用户列表项（匹配后端 UserDto） */
 export interface UserDto {
   id: string
@@ -10,6 +26,7 @@ export interface UserDto {
   isActive: boolean
   userType: number
   roles: string[]
+  organizationUnits: OrgUnitNode[]
   createdAt: string
   updatedAt: string | null
 }
@@ -20,7 +37,10 @@ export interface CreateUserDto {
   password: string
   email?: string
   phoneNumber?: string
-  roleIds?: string[]
+  tenantId?: string
+  userType?: number
+  roleIds: string[]
+  organizationUnitIds: string[]
 }
 
 /** 更新用户 */
@@ -28,7 +48,9 @@ export interface UpdateUserDto {
   email?: string
   phoneNumber?: string
   isActive?: boolean
+  userType?: number
   roleIds?: string[]
+  organizationUnitIds?: string[]
 }
 
 /** 分配角色 */
@@ -39,4 +61,5 @@ export interface AssignRolesDto {
 /** 用户查询参数 */
 export interface UserQuery extends PagedRequest {
   isActive?: boolean
+  tenantIds?: string[]
 }

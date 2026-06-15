@@ -38,8 +38,17 @@ export interface RoleDto {
   createdAt: string
 }
 
+/** 创建角色 */
+export interface CreateRoleDto {
+  name: string
+  code: string
+  description?: string
+  tenantId?: string | null
+}
+
 export interface RoleQuery extends PagedRequest {
   isSystem?: boolean
+  tenantIds?: string[]
 }
 
 /** 权限码 */

@@ -2,7 +2,7 @@ import ElementPlus from 'element-plus'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
-import { permission } from './directives/permission'
+import { permission, userType } from './directives/permission'
 
 import router from './router'
 import { useErrorLogStore } from './stores/errorLog'
@@ -21,6 +21,7 @@ app.use(createPinia())
 app.use(router)
 app.use(ElementPlus, { size: 'default' })
 app.directive('permission', permission)
+app.directive('user-type', userType)
 
 // 前端错误捕获
 app.config.errorHandler = (err: unknown, instance, info) => {

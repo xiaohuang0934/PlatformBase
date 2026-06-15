@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { FormInstance, FormRules } from 'element-plus'
-import type { RoleDto } from '@/types/auth'
+import type { CreateRoleDto, RoleDto } from '@/types/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { reactive, ref } from 'vue'
 import * as roleApi from '@/api/roles'
 import TableToolbar from '@/components/TableToolbar.vue'
+import TenantSelector from '@/components/TenantSelector.vue'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { useAuthStore } from '@/stores/auth'
 import { parseTime } from '@/utils/index'
@@ -12,29 +13,36 @@ import { parseTime } from '@/utils/index'
 const loading = ref(false)
 const roleList = ref<RoleDto[]>([])
 const total = ref(0)
-const tableRef = ref<any>(null); const sel = useTableSelection<RoleDto>(tableRef)
+const tableRef = ref<any>(null)
+const sel = useTableSelection<RoleDto>(tableRef)
 const auth = useAuthStore()
 
-const query = reactive({ keyword: '', isSystem: undefined as boolean | undefined, pageIndex: 1, pageSize: 10 })
+const query = reactive({ keyword: '', isSystem: undefined as boolean | undefined, pageIndex: 1, pageSize: 10, tenantIds: [] as string[] })
 
-/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
-    const res = await roleApi.getRoleList({ keyword: query.keyword || undefined, isSystem: query.isSystem, pageIndex: query.pageIndex, pageSize: query.pageSize })
+    const res = await roleApi.getRoleList({
+      keyword: query.keyword || undefined,
+      isSystem: query.isSystem,
+      pageIndex: query.pageIndex,
+      pageSize: query.pageSize,
+      tenantIds: query.tenantIds.length ? query.tenantIds : undefined,
+    })
     roleList.value = res.data.items; total.value = res.data.totalCount
   }
-  catch {
-    ElMessage.error('加载失败，请重试')
-  }
+  catch { ElMessage.error('加载失败，请重试') }
   finally { loading.value = false }
 }
-/** 搜索 */
-function onSearch() { query.pageIndex = 1; fetchList() }
-/** On Re设置 */
-function onReset() { query.keyword = ''; query.isSystem = undefined; query.pageIndex = 1; fetchList() }
 
-/** 批量删除 */
+function onSearch() { query.pageIndex = 1; fetchList() }
+function onReset() { query.keyword = ''; query.isSystem = undefined; query.tenantIds = []; query.pageIndex = 1; fetchList() }
+
+function onTenantChange(tid: string | null) {
+  query.tenantIds = tid ? [tid] : []
+  onSearch()
+}
+
 async function batchDelete() {
   try { await ElMessageBox.confirm(`确定删除选中的 ${sel.selectedCount.value} 个角色吗？`, '批量删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
@@ -43,48 +51,63 @@ async function batchDelete() {
     await Promise.all(sel.selectedIds.value.map(id => roleApi.deleteRole(id)))
     ElMessage.success('批量删除完成'); sel.clearSelection(); fetchList()
   }
-  catch {
-    ElMessage.error('操作失败，请重试')
-  }
+  catch { ElMessage.error('操作失败，请重试') }
   finally { loading.value = false }
 }
+
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增角色')
 const isEditing = ref(false)
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
-const form = reactive({ id: '', name: '', code: '', description: '' })
-const formRules: FormRules = { name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }], code: [{ required: true, message: '请输入角色编码', trigger: 'blur' }] }
+const form = reactive<CreateRoleDto & { id?: string }>({ name: '', code: '', description: '', tenantId: undefined })
+const formRules: FormRules = {
+  name: [{ required: true, message: '请输入角色名称', trigger: 'blur' }],
+  code: [{ required: true, message: '请输入角色编码', trigger: 'blur' }],
+}
 
-/** 打开 Create */
-function openCreate() { isEditing.value = false; dialogTitle.value = '新增角色'; Object.assign(form, { id: '', name: '', code: '', description: '' }); dialogVisible.value = true }
-/** 打开 Edit */
-function openEdit(row: RoleDto) { isEditing.value = true; dialogTitle.value = '编辑角色'; Object.assign(form, { id: row.id, name: row.name, code: row.code, description: row.description || '' }); dialogVisible.value = true }
+function openCreate() {
+  isEditing.value = false; dialogTitle.value = '新增角色'
+  Object.assign(form, { id: '', name: '', code: '', description: '', tenantId: undefined })
+  dialogVisible.value = true
+}
 
-/** Submit */
+function openEdit(row: RoleDto) {
+  isEditing.value = true; dialogTitle.value = '编辑角色'
+  Object.assign(form, { id: row.id, name: row.name, code: row.code, description: row.description || '', tenantId: undefined })
+  dialogVisible.value = true
+}
+
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid)
-    return; submitting.value = true
+  if (!valid) return
+  submitting.value = true
   try {
-    if (isEditing.value) { await roleApi.updateRole(form.id, { name: form.name, description: form.description || undefined }); ElMessage.success('更新成功') }
-    else { await roleApi.createRole({ name: form.name, code: form.code, description: form.description || undefined }); ElMessage.success('创建成功') }
+    if (isEditing.value) {
+      await roleApi.updateRole(form.id!, { name: form.name, description: form.description || undefined })
+      ElMessage.success('更新成功')
+    }
+    else {
+      await roleApi.createRole({
+        name: form.name,
+        code: form.code,
+        description: form.description || undefined,
+        tenantId: form.tenantId || null,
+      })
+      ElMessage.success('创建成功')
+    }
     dialogVisible.value = false; fetchList()
   }
-  catch {
-    ElMessage.error('操作失败，请重试')
-  }
+  catch { ElMessage.error('操作失败，请重试') }
   finally { submitting.value = false }
 }
 
-/** Delete */
 async function handleDelete(row: RoleDto) {
   try { await ElMessageBox.confirm(`确定删除角色 "${row.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
   await roleApi.deleteRole(row.id); ElMessage.success('已删除'); fetchList()
 }
 
-/** 分页切换 */
 function onPageChange(p: number) { query.pageIndex = p; fetchList() }
 onMounted(fetchList)
 </script>
@@ -103,6 +126,11 @@ onMounted(fetchList)
         <el-option label="系统角色" :value="true" />
         <el-option label="自定义" :value="false" />
       </el-select>
+      <TenantSelector
+        :model-value="query.tenantIds[0] || null"
+        style="width: 200px"
+        @update:model-value="onTenantChange"
+      />
       <el-button type="primary" @click="onSearch">
         搜索
       </el-button>
@@ -124,7 +152,7 @@ onMounted(fetchList)
 
     <el-table ref="tableRef" v-loading="loading" :data="roleList" border stripe row-key="id" @selection-change="sel.handleSelectionChange" @row-click="sel.toggleRow">
       <el-table-column type="selection" width="45" />
-      <el-table-column v-if="auth.isSuperAdmin" prop="id" label="ID" width="280" show-overflow-tooltip />
+      <el-table-column v-if="auth.isPlatformAdmin" prop="id" label="ID" width="280" show-overflow-tooltip />
       <el-table-column prop="name" label="角色名称" min-width="140" />
       <el-table-column prop="code" label="编码" min-width="140" />
       <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
@@ -168,11 +196,18 @@ onMounted(fetchList)
       <el-form-item label="描述">
         <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
       </el-form-item>
+      <el-form-item v-if="auth.isPlatformAdmin" label="租户">
+        <TenantSelector v-model="form.tenantId" style="width:100%" />
+        <div style="color: var(--el-text-color-secondary); font-size: 12px; margin-top: 4px">
+          留空 = 全局角色，对所有租户可见
+        </div>
+      </el-form-item>
     </el-form>
     <template #footer>
       <el-button @click="dialogVisible = false">
         取消
-      </el-button><el-button type="primary" :loading="submitting" @click="handleSubmit">
+      </el-button>
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">
         确定
       </el-button>
     </template>

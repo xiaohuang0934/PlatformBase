@@ -3,12 +3,21 @@ import http from './index'
 
 const BASE = '/tenants'
 
-/** 获取 Tenant List */
+export interface TenantDto {
+  id: string
+  name: string
+  code: string
+  description?: string
+  isEnabled: boolean
+  createdAt: string
+}
+
+/** 分页查询租户列表 */
 export function getTenantList(params?: { keyword?: string, isEnabled?: boolean, pageIndex?: number, pageSize?: number }): Promise<ApiResult<any>> {
   return http.get(BASE, { params }).then(res => res.data)
 }
 
-/** 获取 Tenant By Id */
+/** 获取租户详情 */
 export function getTenantById(id: string): Promise<ApiResult<any>> {
   return http.get(`${BASE}/${id}`).then(res => res.data)
 }
@@ -23,7 +32,12 @@ export function updateTenant(id: string, data: Record<string, unknown>): Promise
   return http.put(`${BASE}/${id}`, data).then(res => res.data)
 }
 
-/** 删除ete Tenant */
+/** 删除租户 */
 export function deleteTenant(id: string): Promise<ApiResult<null>> {
   return http.delete(`${BASE}/${id}`).then(res => res.data)
+}
+
+/** 获取当前平台用户可访问的租户列表 */
+export function getAccessibleTenants(): Promise<ApiResult<TenantDto[]>> {
+  return http.get(`${BASE}/accessible`).then(res => res.data)
 }

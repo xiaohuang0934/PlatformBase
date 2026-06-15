@@ -1,15 +1,27 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { usePermissionStore } from '@/stores/permission'
 import { useThemeStore } from '@/stores/theme'
+import { UserType } from '@/types/user'
 
 const router = useRouter()
 const auth = useAuthStore()
 const permission = usePermissionStore()
 const theme = useThemeStore()
 
-/** Logout */
+const userTypeLabel: Record<number, string> = {
+  [UserType.PlatformAdmin]: '平台管理员',
+  [UserType.TenantAdmin]: '租户管理员',
+  [UserType.TenantUser]: '租户用户',
+}
+
+const roleLabel = computed(() => {
+  if (!auth.user) return ''
+  return userTypeLabel[auth.user.userType] || `用户类型${auth.user.userType}`
+})
+
 function handleLogout() {
   auth.logoutAction()
   permission.reset()
@@ -27,7 +39,7 @@ function handleLogout() {
         <div class="profile-card__info">
           <span class="profile-card__name">{{ auth.displayName }}</span>
           <span class="profile-card__role">
-            {{ auth.isSuperAdmin ? '平台管理员' : '用户' }}
+            {{ roleLabel }}
           </span>
         </div>
       </div>

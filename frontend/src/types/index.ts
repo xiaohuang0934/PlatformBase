@@ -1,5 +1,6 @@
 export type { ApiResult, PagedRequest, PagedResult } from './api-result'
 export type {
+  CreateRoleDto,
   LoginRequest,
   LoginResponse,
   MenuDto,
@@ -8,4 +9,12 @@ export type {
   RoleQuery,
   UserProfileDto,
 } from './auth'
-export type { AssignRolesDto, CreateUserDto, UpdateUserDto, UserDto, UserQuery } from './user'
+export type {
+  AssignRolesDto,
+  CreateUserDto,
+  OrgUnitNode,
+  UpdateUserDto,
+  UserDto,
+  UserQuery,
+} from './user'
+export { UserType } from './user'
