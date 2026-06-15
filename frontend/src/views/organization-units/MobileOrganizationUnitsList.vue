@@ -1,87 +1,227 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onActivated, onMounted, reactive, ref } from 'vue'
 import * as orgApi from '@/api/organization'
 
-const router = useRouter(); const loading = ref(false); const list = ref<any[]>([]); const flatList = ref<any[]>([])
-/** 扁平化树形数据 */
-function flatten(items: any[]): any[] {
-  const r: any[] = []; for (const item of items) {
-    r.push(item); if (item.children?.length)
-      r.push(...flatten(item.children))
-  } return r
+interface TenantNode {
+  tenantId: string
+  tenantName: string
+  tenantCode: string
+  hasChildren: boolean
 }
-/** 获取 List */
-async function fetchList() {
-  loading.value = true; try { const res = await orgApi.getOrgUnitTree(); list.value = res.data ?? []; flatList.value = flatten(list.value) }
+
+interface OrgNode {
+  id: string
+  name: string
+  code: string
+  parentId: string | null
+  sortOrder: number
+  hasChildren: boolean
+}
+
+const loading = ref(false)
+const tenantList = ref<TenantNode[]>([])
+const keyword = ref('')
+const filteredTenants = computed(() => {
+  if (!keyword.value) return tenantList.value
+  const kw = keyword.value.toLowerCase()
+  return tenantList.value.filter(t => t.tenantName.toLowerCase().includes(kw) || t.tenantCode.toLowerCase().includes(kw))
+})
+
+async function loadTenants() {
+  loading.value = true
+  try {
+    const res = await orgApi.getOrgNodes()
+    tenantList.value = (res.data || []) as TenantNode[]
+  }
   catch { ElMessage.error('加载失败') }
   finally { loading.value = false }
 }
-/** 获取 Indent */
-function getIndent(item: any): number { return (item.path?.split('/').length ?? 1) - 1 }
-/** 跳转到详情页 */
-function goDetail(id: string) { router.push(`/m/organization-units/${id}`) }
-onMounted(fetchList)
 
-const showForm = ref(false); const form = reactive({ name: '', parentId: '' as string | undefined, description: '' }); const submitting = ref(false)
-/** 打开 Create */
-function openCreate() { Object.assign(form, { name: '', parentId: undefined, description: '' }); showForm.value = true }
-/** Create */
+onMounted(loadTenants)
+onActivated(() => { if (tenantList.value.length > 0) loadTenants() })
+
+// ─── 新增部门 action sheet ───
+const showForm = ref(false)
+const form = reactive({ tenantId: '', name: '', code: '', parentId: '' as string | undefined })
+const submitting = ref(false)
+
+function openCreate(tenantId: string, parentId?: string) {
+  Object.assign(form, { tenantId, name: '', code: '', parentId: parentId || undefined })
+  showForm.value = true
+}
+
 async function handleCreate() {
-  if (!form.name)
-    return; submitting.value = true; try { await orgApi.createOrgUnit({ name: form.name, parentId: form.parentId, description: form.description || undefined }); ElMessage.success('创建成功'); showForm.value = false; fetchList() }
+  if (!form.name || !form.code) return
+  submitting.value = true
+  try {
+    await orgApi.createOrgUnit({ name: form.name, code: form.code, tenantId: form.tenantId, parentId: form.parentId })
+    ElMessage.success('创建成功')
+    showForm.value = false
+    refreshCurrentOrgList()
+  }
   catch { ElMessage.error('操作失败') }
   finally { submitting.value = false }
 }
+
+// ─── 租户→部门钻取 ───
+const currentTenantId = ref('')
+const currentTenantName = ref('')
+const showOrgList = ref(false)
+const orgList = ref<OrgNode[]>([])
+const orgLoading = ref(false)
+const expandedOrgIds = ref<Set<string>>(new Set())
+const childOrgs = ref<Record<string, OrgNode[]>>({})
+
+async function openTenantOrgs(t: TenantNode) {
+  currentTenantId.value = t.tenantId
+  currentTenantName.value = t.tenantName
+  showOrgList.value = true
+  orgLoading.value = true
+  try {
+    const res = await orgApi.getOrgNodes({ tenantId: t.tenantId })
+    orgList.value = (res.data || []) as OrgNode[]
+  }
+  catch { ElMessage.error('加载部门失败') }
+  finally { orgLoading.value = false }
+}
+
+function backToTenants() {
+  showOrgList.value = false
+  expandedOrgIds.value = new Set()
+  childOrgs.value = {}
+}
+
+async function refreshCurrentOrgList() {
+  try {
+    const res = await orgApi.getOrgNodes({ tenantId: currentTenantId.value })
+    orgList.value = (res.data || []) as OrgNode[]
+    childOrgs.value = {}
+    expandedOrgIds.value = new Set()
+  }
+  catch { }
+}
+
+async function toggleOrg(org: OrgNode) {
+  if (expandedOrgIds.value.has(org.id)) {
+    expandedOrgIds.value.delete(org.id)
+  }
+  else {
+    expandedOrgIds.value.add(org.id)
+    const key = `${currentTenantId.value}_${org.id}`
+    if (!childOrgs.value[key]) {
+      try {
+        const res = await orgApi.getOrgNodes({ tenantId: currentTenantId.value, parentId: org.id })
+        childOrgs.value[key] = (res.data || []) as OrgNode[]
+        childOrgs.value = { ...childOrgs.value }
+      }
+      catch { }
+    }
+  }
+  expandedOrgIds.value = new Set(expandedOrgIds.value)
+}
+
+function getChildren(orgId: string): OrgNode[] {
+  return childOrgs.value[`${currentTenantId.value}_${orgId}`] || []
+}
+
+// ─── 递归渲染辅助 ───
+function renderNodes(orgs: OrgNode[], level: number): any[] {
+  const result: any[] = []
+  for (const org of orgs) {
+    result.push({ ...org, _level: level })
+    if (expandedOrgIds.value.has(org.id)) {
+      const children = getChildren(org.id)
+      result.push(...renderNodes(children, level + 1))
+    }
+  }
+  return result
+}
+
+const renderedList = computed(() => renderNodes(orgList.value, 1))
 </script>
 
 <template>
-  <div class="m-page">
-    <div class="m-toolbar">
-      <van-button type="primary" block round @click="openCreate">
-        添加
-      </van-button>
-    </div>
-    <!-- 空状态 -->
-    <div v-if="list.length === 0 && !loading" class="m-empty">
+  <!-- 租户列表视图 -->
+  <div v-if="!showOrgList" class="m-page">
+    <van-sticky>
+      <van-search v-model="keyword" placeholder="搜索租户名称/编码" shape="round" @search="onSearch" @clear="onSearch" />
+    </van-sticky>
+
+    <div v-if="!loading && filteredTenants.length === 0" class="m-empty">
       <span class="m-empty__icon">📋</span>
       <span class="m-empty__text">暂无数据</span>
     </div>
 
-    <div class="m-card-list">
-      <div v-for="item in flatList" :key="item.id" class="m-card-list__item" @click="goDetail(item.id)">
+    <div v-loading="loading" class="m-card-list">
+      <div v-for="t in filteredTenants" :key="t.tenantId" class="m-card-list__item" @click="openTenantOrgs(t)">
         <div class="card-header">
-          <span class="card-header__title" :style="{ paddingLeft: `${getIndent(item) * 16}px` }">{{ item.name }} <van-icon name="arrow" size="14" color="var(--color-text-dim)" /></span>
+          <span class="card-header__title">{{ t.tenantName }} <van-icon name="arrow" size="14" color="var(--color-text-dim)" /></span>
         </div>
-        <div v-if="item.description" class="card-row">
-          <span class="card-row__label">描述</span><span>{{ item.description }}</span>
+        <div class="card-row">
+          <span class="card-row__label">编码</span><span>{{ t.tenantCode }}</span>
         </div>
       </div>
     </div>
-    <van-action-sheet v-model:show="showForm" title="新增组织">
-      <div style="padding:16px">
-        <van-field v-model="form.name" label="名称" /><van-field v-model="form.description" label="描述" type="textarea" autosize /><van-button round block type="primary" :loading="submitting" style="margin-top:16px" @click="handleCreate">
-          确定
-        </van-button>
-      </div>
-    </van-action-sheet>
   </div>
+
+  <!-- 部门列表视图 -->
+  <div v-else class="m-page">
+    <van-nav-bar :title="currentTenantName" left-arrow fixed placeholder @click-left="backToTenants">
+      <template #right>
+        <van-icon name="plus" size="20" @click="openCreate(currentTenantId)" />
+      </template>
+    </van-nav-bar>
+
+    <div v-if="!orgLoading && orgList.length === 0" class="m-empty" style="margin-top:46px">
+      <span class="m-empty__icon">📁</span>
+      <span class="m-empty__text">暂无部门</span>
+    </div>
+
+    <div v-loading="orgLoading" class="m-card-list" style="margin-top:8px">
+      <div v-for="node in renderedList" :key="node.id" class="m-card-list__item"
+        :style="{ paddingLeft: `${12 + node._level * 16}px` }"
+        @click="node.hasChildren ? toggleOrg(node) : undefined">
+        <div class="card-header">
+          <span class="card-header__title">
+            <span v-if="node.hasChildren" style="margin-right:6px;font-size:10px;color:var(--color-text-dim)">
+              {{ expandedOrgIds.has(node.id) ? '▼' : '▶' }}
+            </span>
+            {{ node.name }}
+          </span>
+          <span class="card-header__code">{{ node.code }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新增部门 action sheet -->
+  <van-action-sheet v-model:show="showForm" title="新增部门">
+    <div style="padding:16px">
+      <van-field v-model="form.name" label="名称" placeholder="请输入部门名称" />
+      <van-field v-model="form.code" label="编码" placeholder="请输入部门编码" />
+      <van-button round block type="primary" :loading="submitting" style="margin-top:16px" @click="handleCreate">
+        确定
+      </van-button>
+    </div>
+  </van-action-sheet>
 </template>
 
 <style scoped lang="scss">
-.m-toolbar {
-  padding: 8px 12px;
-}
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
   &__title {
     font-size: $font-size-md;
     font-weight: 600;
     color: $color-text-primary;
+    display: flex;
+    align-items: center;
+  }
+  &__code {
+    font-size: $font-size-sm;
+    color: $color-text-dim;
   }
 }
 .card-row {
@@ -96,5 +236,3 @@ async function handleCreate() {
   }
 }
 </style>
-
-.card-footer { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--color-border); } .card-footer__link { font-size: 12px; color: var(--color-text-dim); }

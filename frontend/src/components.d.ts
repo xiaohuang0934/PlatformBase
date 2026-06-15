@@ -35,6 +35,7 @@ declare module 'vue' {
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
     ElTag: typeof import('element-plus/es')['ElTag']
     ElTree: typeof import('element-plus/es')['ElTree']
+    FormDialog: typeof import('./components/FormDialog.vue')['default']
     Hamburger: typeof import('./components/Hamburger.vue')['default']
     OrgSelector: typeof import('./components/OrgSelector.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

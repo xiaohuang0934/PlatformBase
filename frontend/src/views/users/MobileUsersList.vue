@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { UserDto } from '@/types/user'
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { onActivated, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import * as userApi from '@/api/users'
 import { parseTime } from '@/utils/index'
@@ -10,16 +10,21 @@ const router = useRouter()
 const loading = ref(false)
 const list = ref<UserDto[]>([])
 const query = reactive({ keyword: '', isActive: undefined as boolean | undefined, pageIndex: 1, pageSize: 10 })
+const activeTab = ref(0)
 const finished = ref(false)
 
-/** 获取 List */
+function getIsActive(tab: number): boolean | undefined {
+  if (tab === 1) return true
+  if (tab === 2) return false
+  return undefined
+}
+
 async function fetchList() {
   loading.value = true
   try {
     const res = await userApi.getUserList({ keyword: query.keyword || undefined, isActive: query.isActive, pageIndex: query.pageIndex, pageSize: query.pageSize })
     const items = res.data.items
-    if (query.pageIndex === 1)
-      list.value = items
+    if (query.pageIndex === 1) list.value = items
     else list.value.push(...items)
     finished.value = items.length < query.pageSize
   }
@@ -27,40 +32,37 @@ async function fetchList() {
   finally { loading.value = false }
 }
 
-/** 搜索 */
 function onSearch() { query.pageIndex = 1; fetchList() }
-/** 筛选条件变更 */
-function onFilterChange() { query.pageIndex = 1; fetchList() }
-/** 滚动加载更多 */
+function onFilterChange(tab: number) {
+  activeTab.value = tab
+  query.isActive = getIsActive(tab)
+  query.pageIndex = 1
+  fetchList()
+}
 function onLoad() { query.pageIndex++; fetchList() }
-/** 跳转到详情页 */
 function goDetail(id: string) { router.push(`/m/users/${id}/edit`) }
 
 onMounted(fetchList)
+onActivated(() => { if (list.value.length > 0) fetchList() })
 </script>
 
 <template>
   <div class="m-page">
-    <!-- 标题栏搜索 -->
     <van-sticky>
       <van-search v-model="query.keyword" placeholder="搜索用户名/邮箱" shape="round" @search="onSearch" @clear="onSearch" />
-      <!-- 状态筛选 tabs -->
-      <van-tabs v-model="query.isActive" :style="{ '--van-tab-font-size': '13px' }" @change="onFilterChange">
-        <van-tab title="全部" :name="undefined" />
-        <van-tab title="启用" :name="true" />
-        <van-tab title="禁用" :name="false" />
+      <van-tabs v-model="activeTab" :style="{ '--van-tab-font-size': '13px' }" @change="onFilterChange">
+        <van-tab title="全部" :name="0" />
+        <van-tab title="启用" :name="1" />
+        <van-tab title="禁用" :name="2" />
       </van-tabs>
     </van-sticky>
 
-    <!-- 添加按钮 -->
     <div class="m-toolbar">
       <van-button type="primary" block round to="/m/users/create">
         添加
       </van-button>
     </div>
 
-    <!-- 卡片列表 -->
-    <!-- 空状态 -->
     <div v-if="list.length === 0 && !loading" class="m-empty">
       <span class="m-empty__icon">📋</span>
       <span class="m-empty__text">暂无数据</span>
@@ -83,9 +85,6 @@ onMounted(fetchList)
           </div>
           <div class="card-row">
             <span class="card-row__label">创建</span><span>{{ parseTime(item.createdAt) }}</span>
-            <div class="card-footer">
-              <div class="card-footer" />
-            </div>
           </div>
         </div>
       </div>

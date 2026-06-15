@@ -1,60 +1,51 @@
 <script setup lang="ts">
 import type { FormInstance, FormRules } from 'element-plus'
 import type { CreateRoleDto, RoleDto } from '@/types/auth'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { reactive, ref } from 'vue'
 import * as roleApi from '@/api/roles'
+import FormDialog from '@/components/FormDialog.vue'
 import TableToolbar from '@/components/TableToolbar.vue'
 import TenantSelector from '@/components/TenantSelector.vue'
-import { useTableSelection } from '@/composables/useTableSelection'
 import { useAuthStore } from '@/stores/auth'
+import { useCrudList } from '@/composables/useCrudList'
+import { useDeleteConfirm } from '@/composables/useDeleteConfirm'
+import { useTableSelection } from '@/composables/useTableSelection'
 import { parseTime } from '@/utils/index'
 
-const loading = ref(false)
-const roleList = ref<RoleDto[]>([])
-const total = ref(0)
+const auth = useAuthStore()
+const { confirmDelete } = useDeleteConfirm()
+const queryExt = reactive({ isSystem: undefined as boolean | undefined, tenantIds: [] as string[] })
+
+const { loading, list: roleList, total, query, fetchList, onSearch, onReset, onPageChange } = useCrudList<RoleDto>(
+  () => roleApi.getRoleList({
+    keyword: query.keyword || undefined,
+    isSystem: queryExt.isSystem,
+    pageIndex: query.pageIndex,
+    pageSize: query.pageSize,
+    tenantIds: queryExt.tenantIds.length ? queryExt.tenantIds : undefined,
+  }),
+)
+
+function handleReset() { queryExt.isSystem = undefined; queryExt.tenantIds = []; onReset() }
+
 const tableRef = ref<any>(null)
 const sel = useTableSelection<RoleDto>(tableRef)
-const auth = useAuthStore()
-
-const query = reactive({ keyword: '', isSystem: undefined as boolean | undefined, pageIndex: 1, pageSize: 10, tenantIds: [] as string[] })
-
-async function fetchList() {
-  loading.value = true
-  try {
-    const res = await roleApi.getRoleList({
-      keyword: query.keyword || undefined,
-      isSystem: query.isSystem,
-      pageIndex: query.pageIndex,
-      pageSize: query.pageSize,
-      tenantIds: query.tenantIds.length ? query.tenantIds : undefined,
-    })
-    roleList.value = res.data.items; total.value = res.data.totalCount
-  }
-  catch { ElMessage.error('加载失败，请重试') }
-  finally { loading.value = false }
-}
-
-function onSearch() { query.pageIndex = 1; fetchList() }
-function onReset() { query.keyword = ''; query.isSystem = undefined; query.tenantIds = []; query.pageIndex = 1; fetchList() }
 
 function onTenantChange(tid: string | null) {
-  query.tenantIds = tid ? [tid] : []
+  queryExt.tenantIds = tid ? [tid] : []
   onSearch()
 }
 
 async function batchDelete() {
-  try { await ElMessageBox.confirm(`确定删除选中的 ${sel.selectedCount.value} 个角色吗？`, '批量删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
-  catch { return }
-  loading.value = true
   try {
     await Promise.all(sel.selectedIds.value.map(id => roleApi.deleteRole(id)))
     ElMessage.success('批量删除完成'); sel.clearSelection(); fetchList()
   }
-  catch { ElMessage.error('操作失败，请重试') }
-  finally { loading.value = false }
+  catch { ElMessage.error('操作失败') }
 }
 
+// ─── 表单 ───
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增角色')
 const isEditing = ref(false)
@@ -88,65 +79,43 @@ async function handleSubmit() {
       ElMessage.success('更新成功')
     }
     else {
-      await roleApi.createRole({
-        name: form.name,
-        code: form.code,
-        description: form.description || undefined,
-        tenantId: form.tenantId || null,
-      })
+      await roleApi.createRole({ name: form.name, code: form.code, description: form.description || undefined, tenantId: form.tenantId || null })
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false; fetchList()
   }
-  catch { ElMessage.error('操作失败，请重试') }
+  catch { ElMessage.error('操作失败') }
   finally { submitting.value = false }
 }
 
-async function handleDelete(row: RoleDto) {
-  try { await ElMessageBox.confirm(`确定删除角色 "${row.name}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
-  catch { return }
-  await roleApi.deleteRole(row.id); ElMessage.success('已删除'); fetchList()
+function handleDelete(row: RoleDto) {
+  confirmDelete('角色', row.name, () => roleApi.deleteRole(row.id), fetchList)
 }
 
-function onPageChange(p: number) { query.pageIndex = p; fetchList() }
 onMounted(fetchList)
 </script>
 
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-header__title">
-        角色管理
-      </h2>
+      <h2 class="page-header__title">角色管理</h2>
     </div>
 
     <div class="search-bar">
       <el-input v-model="query.keyword" placeholder="角色名称 / 编码" clearable style="width: 200px" @keyup.enter="onSearch" />
-      <el-select v-model="query.isSystem" placeholder="类型" clearable style="width: 120px">
+      <el-select v-model="queryExt.isSystem" placeholder="类型" clearable style="width: 120px">
         <el-option label="系统角色" :value="true" />
         <el-option label="自定义" :value="false" />
       </el-select>
-      <TenantSelector
-        :model-value="query.tenantIds[0] || null"
-        style="width: 200px"
-        @update:model-value="onTenantChange"
-      />
-      <el-button type="primary" @click="onSearch">
-        搜索
-      </el-button>
-      <el-button @click="onReset">
-        重置
-      </el-button>
+      <TenantSelector :model-value="queryExt.tenantIds[0] || null" style="width: 200px" @update:model-value="onTenantChange" />
+      <el-button type="primary" @click="onSearch">搜索</el-button>
+      <el-button @click="handleReset">重置</el-button>
     </div>
 
     <TableToolbar :selected-count="sel.selectedCount.value">
       <template #actions>
-        <el-button type="primary" @click="openCreate">
-          新增角色
-        </el-button>
-        <el-button :disabled="!sel.hasSelection.value" type="danger" plain @click="batchDelete">
-          批量删除
-        </el-button>
+        <el-button type="primary" @click="openCreate">新增角色</el-button>
+        <el-button :disabled="!sel.hasSelection.value" type="danger" plain @click="batchDelete">批量删除</el-button>
       </template>
     </TableToolbar>
 
@@ -157,25 +126,15 @@ onMounted(fetchList)
       <el-table-column prop="code" label="编码" min-width="140" />
       <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
       <el-table-column label="类型" width="100" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.isSystem ? 'info' : ''" size="small">
-            {{ row.isSystem ? '系统' : '自定义' }}
-          </el-tag>
-        </template>
+        <template #default="{ row }"><el-tag :type="row.isSystem ? 'info' : ''" size="small">{{ row.isSystem ? '系统' : '自定义' }}</el-tag></template>
       </el-table-column>
       <el-table-column label="创建时间" width="160">
-        <template #default="{ row }">
-          {{ parseTime(row.createdAt) }}
-        </template>
+        <template #default="{ row }">{{ parseTime(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" link size="small" @click="openEdit(row)">
-            编辑
-          </el-button>
-          <el-button type="danger" link size="small" :disabled="row.isSystem" @click="handleDelete(row)">
-            删除
-          </el-button>
+          <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button type="danger" link size="small" :disabled="row.isSystem" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -185,7 +144,7 @@ onMounted(fetchList)
     </div>
   </div>
 
-  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="480px" destroy-on-close @closed="formRef?.resetFields()">
+  <FormDialog v-model="dialogVisible" :title="dialogTitle" :submitting="submitting" @confirm="handleSubmit" @closed="formRef?.resetFields()">
     <el-form ref="formRef" :model="form" :rules="formRules" label-width="80px">
       <el-form-item label="名称" prop="name">
         <el-input v-model="form.name" placeholder="请输入角色名称" />
@@ -198,18 +157,8 @@ onMounted(fetchList)
       </el-form-item>
       <el-form-item v-if="auth.isPlatformAdmin" label="租户">
         <TenantSelector v-model="form.tenantId" style="width:100%" />
-        <div style="color: var(--el-text-color-secondary); font-size: 12px; margin-top: 4px">
-          留空 = 全局角色，对所有租户可见
-        </div>
+        <div style="color: var(--el-text-color-secondary); font-size: 12px; margin-top: 4px">留空 = 全局角色，对所有租户可见</div>
       </el-form-item>
     </el-form>
-    <template #footer>
-      <el-button @click="dialogVisible = false">
-        取消
-      </el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">
-        确定
-      </el-button>
-    </template>
-  </el-dialog>
+  </FormDialog>
 </template>
