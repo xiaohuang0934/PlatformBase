@@ -27,6 +27,7 @@ export interface UserDto {
   userType: number
   roles: string[]
   organizationUnits: OrgUnitNode[]
+  tenantName: string | null
   createdAt: string
   updatedAt: string | null
 }

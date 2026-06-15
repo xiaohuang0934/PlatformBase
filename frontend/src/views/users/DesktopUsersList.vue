@@ -276,6 +276,11 @@ onMounted(() => { loadRoles(); fetchList() })
           </el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="租户" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.tenantName || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="80" align="center">
         <template #default="{ row }">
           <el-tag :type="row.isActive ? 'success' : 'danger'" size="small">

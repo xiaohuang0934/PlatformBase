@@ -280,6 +280,13 @@ public class UserService : IUserService
         var userOrgMap = userOrgLinks.GroupBy(uo => uo.UserId)
             .ToDictionary(g => g.Key, g => g.Select(uo => orgMap.GetValueOrDefault(uo.OrganizationUnitId)).Where(n => n != null).ToList()!);
 
+        // 批量查询租户名称
+        var tenantIds = result.Items.Select(u => u.TenantId).Where(tid => tid.HasValue).Select(tid => tid!.Value).Distinct().ToList();
+        var tenants = tenantIds.Count > 0
+            ? await _context.Set<Tenant>().AsNoTracking().Where(t => tenantIds.Contains(t.Id)).ToListAsync(ct)
+            : [];
+        var tenantNameMap = tenants.ToDictionary(t => t.Id, t => t.Name);
+
         var dtos = result.Items.Select(u =>
         {
             var roleNames = userRoleMap.GetValueOrDefault(u.Id, []);
@@ -295,6 +302,7 @@ public class UserService : IUserService
                 UserType = u.UserType,
                 Roles = roleNames,
                 OrganizationUnits = orgNodes,
+                TenantName = u.TenantId.HasValue ? tenantNameMap.GetValueOrDefault(u.TenantId.Value) : null,
                 CreatedAt = u.CreatedAt,
                 UpdatedAt = u.UpdatedAt
             };

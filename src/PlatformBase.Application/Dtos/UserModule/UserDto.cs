@@ -21,4 +21,7 @@ public class UserDto
 
     /// <summary>用户所属部门列表</summary>
     public IReadOnlyList<OrgUnitNode> OrganizationUnits { get; set; } = [];
+
+    /// <summary>所属租户名称（TenantId=null 时为空）</summary>
+    public string? TenantName { get; set; }
 }
