@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import { getOrgUnitTree } from '@/api/organization'
 
 interface OrgOption {
   id: string
   name: string
+  code: string
   children?: OrgOption[]
 }
 
@@ -50,10 +51,9 @@ onMounted(loadTree)
     :default-checked-keys="modelValue"
     check-strictly
     :expand-on-click-node="false"
-    v-bind="$attrs"
     @check="handleCheck"
   >
-    <template #default="{ node, data }">
+    <template #default="{ data }">
       <span>{{ data.name }}</span>
     </template>
   </el-tree>

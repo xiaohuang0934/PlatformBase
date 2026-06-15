@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { UserType } from '@/types/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as userApi from '@/api/users'
 import { parseTime } from '@/utils/index'
@@ -11,7 +12,12 @@ const userId = route.params.id as string
 const loading = ref(true)
 const user = ref<any>(null)
 
-/** 加载详情数据 */
+const userTypeLabel: Record<number, string> = {
+  [UserType.PlatformAdmin]: '平台管理员',
+  [UserType.TenantAdmin]: '租户管理员',
+  [UserType.TenantUser]: '租户用户',
+}
+
 async function loadDetail() {
   loading.value = true
   try { const res = await userApi.getUserById(userId); user.value = res.data }
@@ -19,18 +25,14 @@ async function loadDetail() {
   finally { loading.value = false }
 }
 
-/** 跳转到编辑页 */
 function goEdit() { router.push(`/m/users/${userId}/edit`) }
 
-/** Toggle */
 async function handleToggle() {
-  if (!user.value)
-    return
+  if (!user.value) return
   try { await userApi.toggleUser(userId); ElMessage.success(user.value.isActive ? '已禁用' : '已启用'); user.value.isActive = !user.value.isActive }
   catch { ElMessage.error('操作失败') }
 }
 
-/** Delete */
 async function handleDelete() {
   try { await ElMessageBox.confirm(`确定删除用户 "${user.value?.username}" 吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
   catch { return }
@@ -45,11 +47,18 @@ onMounted(loadDetail)
   <div class="m-page">
     <van-nav-bar title="用户详情" left-arrow fixed placeholder @click-left="router.back()" />
 
-    <van-skeleton :loading="loading" :row="5">
+    <van-skeleton :loading="loading" :row="7">
       <van-cell-group inset>
         <van-cell title="用户名" :value="user?.username" />
         <van-cell title="邮箱" :value="user?.email || '-'" />
         <van-cell title="手机号" :value="user?.phoneNumber || '-'" />
+        <van-cell title="用户类型">
+          <template #value>
+            <van-tag type="primary" size="medium">
+              {{ userTypeLabel[user?.userType] || '未知' }}
+            </van-tag>
+          </template>
+        </van-cell>
         <van-cell title="状态">
           <template #value>
             <van-tag :type="user?.isActive ? 'success' : 'danger'">
@@ -58,6 +67,7 @@ onMounted(loadDetail)
           </template>
         </van-cell>
         <van-cell title="角色" :value="(user?.roles || []).join(' / ') || '-'" />
+        <van-cell title="部门" :value="(user?.organizationUnits || []).map((o: any) => o.name).join(' / ') || '-'" />
         <van-cell title="创建时间" :value="parseTime(user?.createdAt)" />
       </van-cell-group>
     </van-skeleton>

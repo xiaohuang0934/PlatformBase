@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { resolveIcon } from '@/layouts/DesktopLayout/Sidebar/icon'
 import { usePermissionStore } from '@/stores/permission'
