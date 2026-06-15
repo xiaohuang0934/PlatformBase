@@ -3,12 +3,13 @@ using System.Security.Cryptography;
 using IdentityServer4;
 using IdentityServer4.Models;
 using Microsoft.Extensions.Localization;
-using PlatformBase.Application.Services;
 using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Extensions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
-using PlatformBase.Core.Extensions;
+using PlatformBase.Host.IdentityServer;
 using PlatformBase.Host.Resources;
+using StackExchange.Redis;
 
 namespace PlatformBase.Host.Services.AuthModule;
 
@@ -22,9 +23,9 @@ public class AuthService : IAuthService
 {
     private readonly IUserService _userService;
     private readonly IdentityServerTools _identityServerTools;
-    private readonly IdentityServer.PersistedGrantStore _grantStore;
+    private readonly PersistedGrantStore _grantStore;
     private readonly IUnitOfWork _uow;
-    private readonly StackExchange.Redis.IDatabase? _redis;
+    private readonly IDatabase? _redis;
     private readonly IStringLocalizer<SharedResource> _localizer;
     private readonly ISystemParamService _sysParam;
 
@@ -37,7 +38,7 @@ public class AuthService : IAuthService
     public AuthService(
         IUserService userService,
         IdentityServerTools identityServerTools,
-        IdentityServer.PersistedGrantStore grantStore,
+        PersistedGrantStore grantStore,
         IUnitOfWork uow,
         IServiceProvider serviceProvider,
         IStringLocalizer<SharedResource> localizer,
@@ -47,7 +48,7 @@ public class AuthService : IAuthService
         _identityServerTools = identityServerTools;
         _grantStore = grantStore;
         _uow = uow;
-        _redis = serviceProvider.GetService<StackExchange.Redis.IConnectionMultiplexer>()?.GetDatabase();
+        _redis = serviceProvider.GetService<IConnectionMultiplexer>()?.GetDatabase();
         _localizer = localizer;
         _sysParam = sysParam;
     }

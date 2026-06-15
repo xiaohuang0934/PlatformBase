@@ -1,4 +1,5 @@
 using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace PlatformBase.Host.Extensions;
 
@@ -8,8 +9,8 @@ namespace PlatformBase.Host.Extensions;
 /// </summary>
 public static class SwaggerExtensions
 {
-    public static Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions AddJwtSecurity(
-        this Swashbuckle.AspNetCore.SwaggerGen.SwaggerGenOptions options)
+    public static SwaggerGenOptions AddJwtSecurity(
+        this SwaggerGenOptions options)
     {
         options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {

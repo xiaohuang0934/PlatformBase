@@ -3,7 +3,7 @@ namespace PlatformBase.Host.Filters;
 /// <summary>
 /// 操作日志标记特性，标注在需要记录操作日志的 Controller Action 上
 /// </summary>
-[AttributeUsage(AttributeTargets.Method, AllowMultiple = false)]
+[AttributeUsage(AttributeTargets.Method)]
 public class OperationLogAttribute : Attribute
 {
     /// <summary>操作类型（login / create / update / delete / export）</summary>

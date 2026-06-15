@@ -1,5 +1,4 @@
 using System.Reflection;
-using PlatformBase.Application.Services;
 
 namespace PlatformBase.Host.Extensions;
 

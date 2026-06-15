@@ -1,6 +1,7 @@
-using System.Text.Json;                            // 提供 JsonSerializer / JsonDocument 解析
-using IdentityServer4.Models;                       // 提供 PersistedGrant 授权持久化模型
-using StackExchange.Redis;                          // 提供 IDatabase / RedisKey / RedisValue
+using System.Text.Json;
+using IdentityServer4.Models;
+using IdentityServer4.Stores;
+using StackExchange.Redis;
 
 namespace PlatformBase.Host.IdentityServer;
 
@@ -29,7 +30,7 @@ namespace PlatformBase.Host.IdentityServer;
 ///   5. RemoveAllAsync：先 GetAllAsync 获取匹配列表，再逐个 DEL + SREM（可进一步优化为单次 Pipeline）
 ///   6. 序列化使用匿名对象只保留 PersistedGrant 的核心字段，反序列化使用 JsonDocument 避免匿名类型反序列化问题
 /// </summary>
-public class RedisPersistedGrantStore : IdentityServer4.Stores.IPersistedGrantStore
+public class RedisPersistedGrantStore : IPersistedGrantStore
 {
     /// <summary>Redis 数据库实例（通过 IConnectionMultiplexer 获取）</summary>
     private readonly IDatabase _redis;
@@ -84,7 +85,7 @@ public class RedisPersistedGrantStore : IdentityServer4.Stores.IPersistedGrantSt
     /// 无 SubjectId → 返回空（不执行全库 SCAN，避免性能问题）
     /// </summary>
     public async Task<IEnumerable<PersistedGrant>> GetAllAsync(
-        IdentityServer4.Stores.PersistedGrantFilter filter) // 过滤条件（SubjectId / Type / ClientId / SessionId）
+        PersistedGrantFilter filter) // 过滤条件（SubjectId / Type / ClientId / SessionId）
     {
         HashSet<string>? keys = null; // 待查询的授权 Key 列表
 
@@ -158,7 +159,7 @@ public class RedisPersistedGrantStore : IdentityServer4.Stores.IPersistedGrantSt
     /// 操作：先 GetAllAsync 获取匹配列表 → 再逐个 DEL + SREM
     /// 写操作通过 Batch Pipeline 批量提交
     /// </summary>
-    public async Task RemoveAllAsync(IdentityServer4.Stores.PersistedGrantFilter filter)
+    public async Task RemoveAllAsync(PersistedGrantFilter filter)
     {
         var grants = await GetAllAsync(filter); // 获取所有匹配过滤条件的授权记录
 
@@ -179,7 +180,7 @@ public class RedisPersistedGrantStore : IdentityServer4.Stores.IPersistedGrantSt
     /// </summary>
     public async Task RevokeUserTokensAsync(string userId)
     {
-        await RemoveAllAsync(new IdentityServer4.Stores.PersistedGrantFilter
+        await RemoveAllAsync(new PersistedGrantFilter
         {
             SubjectId = userId // 过滤条件：仅该用户的记录
         });

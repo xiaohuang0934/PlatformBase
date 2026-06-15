@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using PlatformBase.Application.Services;
 using PlatformBase.Infrastructure.Data;
 
 namespace PlatformBase.Host.Jobs;

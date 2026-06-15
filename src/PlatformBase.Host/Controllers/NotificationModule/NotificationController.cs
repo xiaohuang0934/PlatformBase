@@ -1,8 +1,8 @@
+using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PlatformBase.Application.Dtos;
-using PlatformBase.Application.Services;
+using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
@@ -75,7 +75,7 @@ public class NotificationController : ControllerBase
     [Permission("notifications.manage")]
     public async Task<ApiResult<IReadOnlyList<object>>> GetTemplates(CancellationToken ct)
     {
-        var items = await _uow.Repository<Core.Entities.NotificationTemplate>().FindAsync(t => t.IsEnabled, ct);
+        var items = await _uow.Repository<NotificationTemplate>().FindAsync(t => t.IsEnabled, ct);
         var dtos = items.Select(t => (object)new { t.Id, t.Code, t.Name, t.TitleTemplate, t.BodyTemplate, t.Channel, t.Variables });
         return ApiResult<IReadOnlyList<object>>.Ok(dtos.ToList());
     }
@@ -85,9 +85,9 @@ public class NotificationController : ControllerBase
     [Permission("notifications.manage")]
     public async Task<ApiResult<object>> CreateTemplate([FromBody] object body, CancellationToken ct)
     {
-        var json = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
-            System.Text.Json.JsonSerializer.Serialize(body));
-        var entity = new Core.Entities.NotificationTemplate
+        var json = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(body));
+        var entity = new NotificationTemplate
         {
             Code = json.GetProperty("code").GetString()!,
             Name = json.GetProperty("name").GetString()!,
@@ -96,7 +96,7 @@ public class NotificationController : ControllerBase
             Channel = json.TryGetProperty("channel", out var ch) ? ch.GetString()! : "in_app",
             Variables = json.TryGetProperty("variables", out var v) ? v.GetString() : null
         };
-        var created = await _uow.Repository<Core.Entities.NotificationTemplate>().AddAsync(entity, ct);
+        var created = await _uow.Repository<NotificationTemplate>().AddAsync(entity, ct);
         await _uow.SaveChangesAsync(ct);
         return ApiResult<object>.Ok(new { created.Id, created.Code, created.Name });
     }
@@ -106,13 +106,13 @@ public class NotificationController : ControllerBase
     [Permission("notifications.manage")]
     public async Task<ApiResult> UpdateTemplate(Guid id, [FromBody] object body, CancellationToken ct)
     {
-        var t = await _uow.Repository<Core.Entities.NotificationTemplate>().GetByIdAsync(id, ct);
-        if (t == null) return ApiResult.Fail(Core.Exceptions.ErrorCode.DataNotFound, "模板不存在");
-        var json = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
-            System.Text.Json.JsonSerializer.Serialize(body));
+        var t = await _uow.Repository<NotificationTemplate>().GetByIdAsync(id, ct);
+        if (t == null) return ApiResult.Fail(ErrorCode.DataNotFound, "模板不存在");
+        var json = JsonSerializer.Deserialize<JsonElement>(
+            JsonSerializer.Serialize(body));
         if (json.TryGetProperty("titleTemplate", out var tt)) t.TitleTemplate = tt.GetString()!;
         if (json.TryGetProperty("bodyTemplate", out var bt)) t.BodyTemplate = bt.GetString()!;
-        _uow.Repository<Core.Entities.NotificationTemplate>().Update(t);
+        _uow.Repository<NotificationTemplate>().Update(t);
         await _uow.SaveChangesAsync(ct);
         return ApiResult.Ok("更新成功");
     }
@@ -122,10 +122,10 @@ public class NotificationController : ControllerBase
     [Permission("notifications.manage")]
     public async Task<ApiResult> DeleteTemplate(Guid id, CancellationToken ct)
     {
-        var t = await _uow.Repository<Core.Entities.NotificationTemplate>().GetByIdAsync(id, ct);
-        if (t == null) return ApiResult.Fail(Core.Exceptions.ErrorCode.DataNotFound, "模板不存在");
+        var t = await _uow.Repository<NotificationTemplate>().GetByIdAsync(id, ct);
+        if (t == null) return ApiResult.Fail(ErrorCode.DataNotFound, "模板不存在");
         t.IsEnabled = false;
-        _uow.Repository<Core.Entities.NotificationTemplate>().Update(t);
+        _uow.Repository<NotificationTemplate>().Update(t);
         await _uow.SaveChangesAsync(ct);
         return ApiResult.Ok("已停用");
     }

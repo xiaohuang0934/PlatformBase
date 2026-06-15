@@ -1,7 +1,5 @@
-using System.Threading.Channels;                    // 提供 Channel<T>（生产者-消费者无界队列）
-using Microsoft.Extensions.DependencyInjection;         // 提供 IServiceProvider / CreateScope()
-using Microsoft.Extensions.Logging;                    // 提供 ILogger<T> 结构化日志接口
-using PlatformBase.Core.Events;                        // 提供 IEvent / IEventHandler<T> / IEventPublisher 接口
+using System.Threading.Channels;
+using PlatformBase.Core.Events;
 
 namespace PlatformBase.Host.Services.EventModule;
 

@@ -1,11 +1,11 @@
-using System.Text.Json;                    // 提供 JsonSerializer / JsonSerializerOptions 序列化 401 响应
-using Microsoft.EntityFrameworkCore;           // 提供 AsNoTracking / FirstOrDefaultAsync 等查询扩展
-using PlatformBase.Core.Entities;              // 提供 User 实体（含 SecurityStamp 字段）
-using PlatformBase.Core.Exceptions;           // 提供 ErrorCode 枚举（Unauthorized 等）
-using PlatformBase.Core.Models;               // 提供 ApiResult 统一响应模型
-using PlatformBase.Core.Services;             // 提供 ICurrentUserContext 获取当前用户信息
-using PlatformBase.Infrastructure.Data;       // 提供 AppDbContext 数据库上下文
-using StackExchange.Redis;                    // 提供 IDatabase / StringGetAsync / StringSetAsync
+using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using PlatformBase.Core.Entities;
+using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Models;
+using PlatformBase.Core.Services;
+using PlatformBase.Infrastructure.Data;
+using StackExchange.Redis;
 
 namespace PlatformBase.Host.Middleware;
 

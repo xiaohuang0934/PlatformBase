@@ -2,9 +2,8 @@ using System.Security.Claims;
 using IdentityModel;
 using IdentityServer4.Models;
 using IdentityServer4.Validation;
-using PlatformBase.Application.Services;
-using PlatformBase.Core.Exceptions;
 using StackExchange.Redis;
+using StringExtensions = PlatformBase.Core.Extensions.StringExtensions;
 
 namespace PlatformBase.Host.IdentityServer;
 
@@ -166,5 +165,5 @@ public class ResourceOwnerPasswordValidator : IResourceOwnerPasswordValidator
         catch { /* Redis 不可用，降级跳过 */ }
     }
 
-    private static string Normalize(string value) => PlatformBase.Core.Extensions.StringExtensions.Normalize(value);
+    private static string Normalize(string value) => StringExtensions.Normalize(value);
 }

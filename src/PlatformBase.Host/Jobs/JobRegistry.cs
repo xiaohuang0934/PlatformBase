@@ -1,5 +1,3 @@
-using PlatformBase.Application.Services;
-
 namespace PlatformBase.Host.Jobs;
 
 /// <summary>

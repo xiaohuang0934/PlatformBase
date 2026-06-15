@@ -1,3 +1,4 @@
+using IdentityServer4.Models;
 using IdentityServer4.Stores;
 using Microsoft.EntityFrameworkCore;
 using PlatformBase.Core.Entities;
@@ -19,7 +20,7 @@ public class PersistedGrantStore : IPersistedGrantStore
         _context = context;
     }
 
-    public async Task StoreAsync(IdentityServer4.Models.PersistedGrant grant)
+    public async Task StoreAsync(PersistedGrant grant)
     {
         var existing = await _context.Set<PersistedGrantEntity>()
             .FirstOrDefaultAsync(g => g.Key == grant.Key);
@@ -43,7 +44,7 @@ public class PersistedGrantStore : IPersistedGrantStore
         await _context.SaveChangesAsync();
     }
 
-    public async Task<IdentityServer4.Models.PersistedGrant?> GetAsync(string key)
+    public async Task<PersistedGrant?> GetAsync(string key)
     {
         var entity = await _context.Set<PersistedGrantEntity>()
             .FirstOrDefaultAsync(g => g.Key == key);
@@ -51,8 +52,8 @@ public class PersistedGrantStore : IPersistedGrantStore
         return entity == null ? null : MapToModel(entity);
     }
 
-    public async Task<IEnumerable<IdentityServer4.Models.PersistedGrant>> GetAllAsync(
-        IdentityServer4.Stores.PersistedGrantFilter filter)
+    public async Task<IEnumerable<PersistedGrant>> GetAllAsync(
+        PersistedGrantFilter filter)
     {
         var query = _context.Set<PersistedGrantEntity>().AsQueryable();
 
@@ -81,7 +82,7 @@ public class PersistedGrantStore : IPersistedGrantStore
         }
     }
 
-    public async Task RemoveAllAsync(IdentityServer4.Stores.PersistedGrantFilter filter)
+    public async Task RemoveAllAsync(PersistedGrantFilter filter)
     {
         var grants = await GetAllAsync(filter);
 
@@ -101,10 +102,10 @@ public class PersistedGrantStore : IPersistedGrantStore
     /// </summary>
     public async Task RevokeUserTokensAsync(string userId)
     {
-        await RemoveAllAsync(new IdentityServer4.Stores.PersistedGrantFilter { SubjectId = userId });
+        await RemoveAllAsync(new PersistedGrantFilter { SubjectId = userId });
     }
 
-    private static PersistedGrantEntity MapToEntity(IdentityServer4.Models.PersistedGrant grant)
+    private static PersistedGrantEntity MapToEntity(PersistedGrant grant)
     {
         return new PersistedGrantEntity
         {
@@ -121,9 +122,9 @@ public class PersistedGrantStore : IPersistedGrantStore
         };
     }
 
-    private static IdentityServer4.Models.PersistedGrant MapToModel(PersistedGrantEntity entity)
+    private static PersistedGrant MapToModel(PersistedGrantEntity entity)
     {
-        return new IdentityServer4.Models.PersistedGrant
+        return new PersistedGrant
         {
             Key = entity.Key,
             Type = entity.Type,

@@ -1,5 +1,4 @@
 using FluentValidation;
-using PlatformBase.Application.Dtos;
 
 namespace PlatformBase.Host.Validators;
 

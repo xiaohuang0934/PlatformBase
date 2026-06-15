@@ -1,6 +1,4 @@
-using Hangfire;
 using Hangfire.Dashboard;
-using Microsoft.AspNetCore.Http;
 
 namespace PlatformBase.Host.Extensions;
 

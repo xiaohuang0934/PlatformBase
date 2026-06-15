@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;   // 提供 JwtBearerDefaults.AuthenticationScheme 认证方案名
-using Microsoft.AspNetCore.Authorization;              // 提供 IAuthorizationPolicyProvider / AuthorizationPolicy
-using Microsoft.Extensions.Options;                   // 提供 IOptions<AuthorizationOptions> 获取全局授权配置
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Options;
 
 namespace PlatformBase.Host.Authorization;
 

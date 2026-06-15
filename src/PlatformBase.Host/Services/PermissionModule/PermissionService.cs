@@ -1,13 +1,11 @@
 using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using PlatformBase.Application.Dtos;
-using PlatformBase.Application.Services;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Extensions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
-using PlatformBase.Core.Extensions;
 using PlatformBase.Infrastructure.Data;
 using StackExchange.Redis;
 

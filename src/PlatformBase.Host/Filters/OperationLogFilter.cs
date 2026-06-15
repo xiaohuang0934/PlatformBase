@@ -1,8 +1,10 @@
-using Microsoft.AspNetCore.Mvc.Filters;           // 提供 IAsyncActionFilter / ActionExecutingContext / ActionExecutionDelegate
-using PlatformBase.Core.Models;                    // 提供 OperationLogEntry / OperationLogAttribute 操作日志模型
-using PlatformBase.Core.Services;                  // 提供 ICurrentUserContext 获取当前用户信息
-using PlatformBase.Host.Jobs;                      // 提供 OperationLogWriterJob 后台写入任务
-using PlatformBase.Infrastructure.Data;            // 提供 AppDbContext / ChangeSnapshot 变更快照
+using System.Text.Json;
+using Hangfire;
+using Microsoft.AspNetCore.Mvc.Filters;
+using PlatformBase.Core.Models;
+using PlatformBase.Core.Services;
+using PlatformBase.Host.Jobs;
+using PlatformBase.Infrastructure.Data;
 
 namespace PlatformBase.Host.Filters;
 
@@ -66,8 +68,8 @@ public class OperationLogFilter : IAsyncActionFilter
 
                 if (serializableArgs.Count > 0) // 过滤后仍有可序列化的参数
                 {
-                    detail = System.Text.Json.JsonSerializer.Serialize(serializableArgs, // 序列化为 JSON 字符串
-                        new System.Text.Json.JsonSerializerOptions { MaxDepth = 2 });     // 限制序列化深度为 2 层（防止嵌套过大）
+                    detail = JsonSerializer.Serialize(serializableArgs, // 序列化为 JSON 字符串
+                        new JsonSerializerOptions { MaxDepth = 2 });     // 限制序列化深度为 2 层（防止嵌套过大）
                     if (detail.Length > 2000) detail = detail[..2000]; // 截断超过 2000 字符的详情（保护 DB 字段长度）
                 }
             }
@@ -98,7 +100,7 @@ public class OperationLogFilter : IAsyncActionFilter
         };
 
         // 通过 Hangfire 后台任务异步入队写入日志（不阻塞当前 HTTP 响应）
-        Hangfire.BackgroundJob.Enqueue<OperationLogWriterJob>(job => job.WriteAsync(entry, CancellationToken.None));
+        BackgroundJob.Enqueue<OperationLogWriterJob>(job => job.WriteAsync(entry, CancellationToken.None));
     }
 
     /// <summary>

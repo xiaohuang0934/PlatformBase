@@ -1,7 +1,4 @@
 using FluentValidation;
-using PlatformBase.Application.Dtos;
-using PlatformBase.Core.Repositories;
-using PlatformBase.Core.Entities;
 
 namespace PlatformBase.Host.Validators;
 

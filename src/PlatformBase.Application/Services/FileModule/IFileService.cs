@@ -1,6 +1,3 @@
-using PlatformBase.Application.Dtos;
-using PlatformBase.Core.Models;
-
 namespace PlatformBase.Application.Services.FileModule;
 
 /// <summary>

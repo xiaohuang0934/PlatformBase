@@ -1,7 +1,7 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
-using PlatformBase.Application.Dtos;
-using PlatformBase.Application.Services;
+using PlatformBase.Core.Entities;
+using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Host.Authorization;
 
@@ -64,7 +64,7 @@ public class ImportExportController : ControllerBase
         CancellationToken ct = default)
     {
         if (file == null || file.Length == 0)
-            return ApiResult<object>.Fail(Core.Exceptions.ErrorCode.BadRequest, "请选择文件");
+            return ApiResult<object>.Fail(ErrorCode.BadRequest, "请选择文件");
 
         var columns = new List<ColumnMapping>
         {
@@ -89,7 +89,7 @@ public class ImportExportController : ControllerBase
         {
             try
             {
-                await userService.CreateAsync(new Core.Entities.User
+                await userService.CreateAsync(new User
                 {
                     Username = dto.Username,
                     NormalizedUsername = dto.Username.ToUpperInvariant(),

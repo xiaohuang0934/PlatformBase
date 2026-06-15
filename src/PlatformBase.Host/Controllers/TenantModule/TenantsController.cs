@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using PlatformBase.Application.Services;
+using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Services;
@@ -95,7 +95,7 @@ public class TenantsController : ControllerBase
         if (ids.Count == 0)
             return ApiResult<IReadOnlyList<object>>.Ok([]);
 
-        var tenants = await _db.Set<PlatformBase.Core.Entities.Tenant>()
+        var tenants = await _db.Set<Tenant>()
             .AsNoTracking()
             .Where(t => ids.Contains(t.Id))
             .Select(t => new { t.Id, t.Name })

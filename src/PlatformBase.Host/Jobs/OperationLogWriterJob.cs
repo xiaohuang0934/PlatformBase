@@ -1,4 +1,4 @@
-using PlatformBase.Application.Services;
+using Hangfire;
 using PlatformBase.Core.Models;
 
 namespace PlatformBase.Host.Jobs;
@@ -16,7 +16,7 @@ public class OperationLogWriterJob
     }
 
     /// <summary>写入单条操作日志到数据库</summary>
-    [Hangfire.AutomaticRetry(Attempts = 0)]
+    [AutomaticRetry(Attempts = 0)]
     public async Task WriteAsync(OperationLogEntry entry, CancellationToken ct)
     {
         await _logService.WriteAsync(entry, ct);

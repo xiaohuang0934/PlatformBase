@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Query;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Services;
@@ -314,7 +314,7 @@ public class AppDbContext : DbContext
             .ToList();
 
         return changes.Count > 0
-            ? System.Text.Json.JsonSerializer.Serialize(changes)
+            ? JsonSerializer.Serialize(changes)
             : null;
     }
 

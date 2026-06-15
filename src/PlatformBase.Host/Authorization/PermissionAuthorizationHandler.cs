@@ -1,6 +1,5 @@
-using Microsoft.AspNetCore.Authorization;          // 提供 AuthorizationHandler<T> / AuthorizationHandlerContext 基类
-using PlatformBase.Application.Services;            // 提供 IPermissionService 权限查询接口
-using PlatformBase.Core.Services;                   // 提供 ICurrentUserContext 当前用户信息
+using Microsoft.AspNetCore.Authorization;
+using PlatformBase.Core.Services;
 
 namespace PlatformBase.Host.Authorization;
 

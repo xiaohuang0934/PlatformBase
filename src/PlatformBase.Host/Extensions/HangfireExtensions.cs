@@ -1,6 +1,6 @@
 using Hangfire;
 using Hangfire.MemoryStorage;
-using PlatformBase.Application.Services;
+using Hangfire.SqlServer;
 using PlatformBase.Core;
 using PlatformBase.Host.Jobs;
 
@@ -27,7 +27,7 @@ public static class HangfireExtensions
             if (dbProvider == DatabaseProvider.SqlServer)
             {
                 config.UseSqlServerStorage(connectionString,
-                    new Hangfire.SqlServer.SqlServerStorageOptions
+                    new SqlServerStorageOptions
                     {
                         CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
                         QueuePollInterval = TimeSpan.FromSeconds(15),

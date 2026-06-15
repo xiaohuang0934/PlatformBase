@@ -1,5 +1,5 @@
 using Hangfire;
-using PlatformBase.Application.Services;
+using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Host.Jobs;
@@ -124,7 +124,7 @@ public class BackgroundJobService : IBackgroundJobService
                 await _scheduleService.UpsertAsync(
                     definition.JobId, definition.JobName,
                     definition.DefaultCron, definition.Description, ct);
-                schedule = new Core.Entities.JobSchedule
+                schedule = new JobSchedule
                 {
                     JobId = definition.JobId,
                     CronExpression = definition.DefaultCron,

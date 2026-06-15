@@ -1,5 +1,3 @@
-using PlatformBase.Application.Dtos;
-
 namespace PlatformBase.Application.Services.NotificationModule;
 
 /// <summary>

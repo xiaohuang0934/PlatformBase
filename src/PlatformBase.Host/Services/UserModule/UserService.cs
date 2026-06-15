@@ -1,14 +1,15 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using PlatformBase.Application.Dtos;
-using PlatformBase.Application.Services;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Extensions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
-using PlatformBase.Infrastructure.Data;
 using PlatformBase.Core.Services;
-using PlatformBase.Core.Extensions;
+using PlatformBase.Host.IdentityServer;
+using PlatformBase.Infrastructure.Data;
+using StackExchange.Redis;
+using Role = PlatformBase.Core.Entities.Role;
 
 namespace PlatformBase.Host.Services.UserModule;
 
@@ -22,8 +23,8 @@ public class UserService : IUserService
 {
     private readonly IUnitOfWork _uow;
     private readonly AppDbContext _context;
-    private readonly StackExchange.Redis.IDatabase? _redis;
-    private readonly IdentityServer.PersistedGrantStore _grantStore;
+    private readonly IDatabase? _redis;
+    private readonly PersistedGrantStore _grantStore;
     private readonly ICurrentUserContext _currentUser;
     private readonly ISystemParamService _sysParam;
 
@@ -31,12 +32,12 @@ public class UserService : IUserService
     private const int DefaultLockoutMinutes = 5;
 
     public UserService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider,
-        IdentityServer.PersistedGrantStore grantStore, ICurrentUserContext currentUser,
+        PersistedGrantStore grantStore, ICurrentUserContext currentUser,
         ISystemParamService sysParam)
     {
         _uow = uow;
         _context = context;
-        _redis = serviceProvider.GetService<StackExchange.Redis.IConnectionMultiplexer>()?.GetDatabase();
+        _redis = serviceProvider.GetService<IConnectionMultiplexer>()?.GetDatabase();
         _grantStore = grantStore;
         _currentUser = currentUser;
         _sysParam = sysParam;

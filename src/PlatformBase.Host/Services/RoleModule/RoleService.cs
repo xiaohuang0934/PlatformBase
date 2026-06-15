@@ -1,14 +1,14 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
-using PlatformBase.Application.Dtos;
-using PlatformBase.Application.Services;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Extensions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
-using PlatformBase.Core.Extensions;
 using PlatformBase.Core.Services;
 using PlatformBase.Infrastructure.Data;
+using StackExchange.Redis;
+using Role = PlatformBase.Core.Entities.Role;
 
 namespace PlatformBase.Host.Services.RoleModule;
 
@@ -20,14 +20,14 @@ public class RoleService : IRoleService
 {
     private readonly IUnitOfWork _uow;
     private readonly AppDbContext _context;
-    private readonly StackExchange.Redis.IDatabase? _redis;
+    private readonly IDatabase? _redis;
     private readonly ICurrentUserContext _currentUser;
 
     public RoleService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider, ICurrentUserContext currentUser)
     {
         _uow = uow;
         _context = context;
-        _redis = serviceProvider.GetService<StackExchange.Redis.IConnectionMultiplexer>()?.GetDatabase();
+        _redis = serviceProvider.GetService<IConnectionMultiplexer>()?.GetDatabase();
         _currentUser = currentUser;
     }
 

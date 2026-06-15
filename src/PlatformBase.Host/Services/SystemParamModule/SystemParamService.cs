@@ -1,13 +1,11 @@
 using System.ComponentModel;
 using System.Linq.Expressions;
 using System.Text.Json;
-using PlatformBase.Application.Dtos;
-using PlatformBase.Application.Services;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Extensions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
-using PlatformBase.Core.Extensions;
 using StackExchange.Redis;
 
 namespace PlatformBase.Host.Services.SystemParamModule;
@@ -279,7 +277,7 @@ public class SystemParamService : ISystemParamService
         {
             var normalized = value?.Trim().ToLowerInvariant();
             if (normalized != "true" && normalized != "false")
-                throw new BusinessException("功能开关的值必须为 true 或 false", ErrorCode.BadRequest);
+                throw new BusinessException("功能开关的值必须为 true 或 false");
         }
     }
 

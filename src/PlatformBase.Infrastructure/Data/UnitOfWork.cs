@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Repositories;

@@ -1,6 +1,6 @@
+using System.Net;
 using System.Net.Mail;
 using System.Text.Json;
-using PlatformBase.Application.Services;
 using PlatformBase.Core.Models;
 using PlatformBase.Host.NotificationProviders;
 
@@ -42,7 +42,7 @@ public class SmtpChannelProvider : IChannelProvider
         {
             using var smtp = new SmtpClient(config.Host, config.Port);
             smtp.EnableSsl = true;
-            smtp.Credentials = new System.Net.NetworkCredential(config.User, config.Password);
+            smtp.Credentials = new NetworkCredential(config.User, config.Password);
 
             var from = config.From ?? config.User;
             var mail = new MailMessage(from, recipient, title, content);

@@ -1,32 +1,30 @@
-using System.Security.Claims;                       // 提供 ClaimTypes 常量（Name / Role 等声明类型）
-using System.Security.Cryptography;                // 提供 RSA.Create() 生成密钥对
-using System.Security.Cryptography.X509Certificates; // 提供 CertificateRequest 生成自签名 X509 证书
-using System.Globalization;                        // 提供 CultureInfo 用于国际化语言配置
-using Asp.Versioning;                              // 提供 ApiVersion / ApiVersionReader 等 API 版本控制
-using FluentValidation;                            // 提供 FluentValidation 核心（IValidator<T>）
-using FluentValidation.AspNetCore;                 // 提供 AddFluentValidationAutoValidation() 自动校验注册
-using Hangfire;                                    // 提供 BackgroundJob / RecurringJob 任务调度
-using Hangfire.Dashboard;                          // 提供 DashboardOptions 调度面板配置
-using Microsoft.AspNetCore.Authentication.JwtBearer; // 提供 JwtBearerDefaults / JwtBearerOptions
-using Microsoft.AspNetCore.Authorization;          // 提供 IAuthorizationPolicyProvider / IAuthorizationHandler
-using Microsoft.AspNetCore.Localization;           // 提供 RequestLocalizationOptions / RequestCulture
-using Microsoft.IdentityModel.Tokens;              // 提供 TokenValidationParameters / X509SecurityKey
-using PlatformBase.Application.Services;           // AddApplicationServices() 自动扫描业务服务
-using PlatformBase.Core;                           // 提供 ErrorCode 错误码枚举
-using PlatformBase.Core.Exceptions;                // 提供自定义异常类型
-using PlatformBase.Core.Models;                    // 提供 ApiResult 统一响应模型
-using PlatformBase.Core.Services;                  // 提供 ICurrentUserContext / IExportService 等核心接口
-using PlatformBase.Host.Authorization;             // 提供 PermissionPolicyProvider / PermissionAuthorizationHandler
-using PlatformBase.Host.Extensions;                // 提供 AddDatabase / AddRedis / AddHangfireInfrastructure 等扩展
-using PlatformBase.Host.Filters;                   // 提供 OperationLogFilter / RateLimitFilter / DataScopeFilter
-using PlatformBase.Host.IdentityServer;            // 提供 PersistedGrantStore / ResourceOwnerPasswordValidator
-using PlatformBase.Host.Middleware;                 // 提供 GlobalExceptionMiddleware / StampValidationMiddleware
-using PlatformBase.Host.Services;                   // 提供 CurrentUserService 等 Host 层服务
-using PlatformBase.Host.NotificationProviders;      // 提供 InAppChannelProvider / SmtpChannelProvider
-using PlatformBase.Host.StorageProviders;           // 提供 LocalFileStorageProvider
-using PlatformBase.Host.Validators;                 // 提供 CreateUserValidator（FluentValidation 扫描起点）
-using PlatformBase.Infrastructure.Extensions;       // 提供 AddEventBus() 等基础设施扩展
-using Serilog;                                     // 提供 UseSerilog() 结构化日志配置
+using System.Globalization;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
+using Asp.Versioning;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Hangfire;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.IdentityModel.Tokens;
+using PlatformBase.Core;
+using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Models;
+using PlatformBase.Core.Services;
+using PlatformBase.Host.Authorization;
+using PlatformBase.Host.Extensions;
+using PlatformBase.Host.Filters;
+using PlatformBase.Host.IdentityServer;
+using PlatformBase.Host.Middleware;
+using PlatformBase.Host.NotificationProviders;
+using PlatformBase.Host.StorageProviders;
+using PlatformBase.Host.Validators;
+using PlatformBase.Infrastructure.Extensions;
+using Serilog;
 
 // ============================================================================
 // 实现逻辑总览：
@@ -77,12 +75,12 @@ builder.Services.AddDatabase(dbProvider, connectionString, enableSensitiveLoggin
 // ═══════════════════ Controllers + 全局过滤器 ═══════════════════
 builder.Services.AddControllers(options => // 注册 MVC 控制器服务
 {
-    options.Filters.Add<PlatformBase.Host.Filters.OperationLogFilter>(); // 全局操作日志过滤器（记录增删改查操作）
-    options.Filters.Add<PlatformBase.Host.Filters.RateLimitFilter>();    // 全局限流过滤器（Redis 滑动窗口）
-    options.Filters.Add<PlatformBase.Host.Filters.DataScopeFilter>();    // 全局数据权限过滤器（部门级数据隔离）
+    options.Filters.Add<OperationLogFilter>(); // 全局操作日志过滤器（记录增删改查操作）
+    options.Filters.Add<RateLimitFilter>();    // 全局限流过滤器（Redis 滑动窗口）
+    options.Filters.Add<DataScopeFilter>();    // 全局数据权限过滤器（部门级数据隔离）
 }).AddJsonOptions(opt => // 配置 JSON 序列化选项
 {
-    opt.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase; // 属性命名策略：驼峰命名（符合前端习惯）
+    opt.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase; // 属性命名策略：驼峰命名（符合前端习惯）
 });
 builder.Services.AddEndpointsApiExplorer(); // 注册 Endpoint 元数据发现（Swagger 生成所需）
 
@@ -105,8 +103,8 @@ builder.Services.AddScoped<IImportService, ImportExportService>();      // 数�
 builder.Services.AddScoped<ImportExportService>();                      // 注册具体类，供内部使用（无需接口）
 builder.Services.AddSingleton<ILockService, RedisLockService>();        // 分布式锁服务（基于 Redis SETNX）
 builder.Services.AddSingleton<IIdGenerator, GuidIdGenerator>();         // 唯一 ID 生成器（Guid 实现，可替换雪花算法）
-builder.Services.AddSingleton<PlatformBase.Host.NotificationProviders.IChannelProvider, PlatformBase.Host.NotificationProviders.InAppChannelProvider>(); // 站内信通知通道
-builder.Services.AddSingleton<PlatformBase.Host.NotificationProviders.IChannelProvider, SmtpChannelProvider>(); // 邮件通知通道（SMTP）
+builder.Services.AddSingleton<IChannelProvider, InAppChannelProvider>(); // 站内信通知通道
+builder.Services.AddSingleton<IChannelProvider, SmtpChannelProvider>(); // 邮件通知通道（SMTP）
 
 // ═══════════════════ 后台任务调度 (Hangfire) ═══════════════════
 builder.Services.AddHangfireInfrastructure(dbProvider, connectionString); // 根据数据库类型注册 Hangfire 存储（SQL Server / PostgreSQL / SQLite）
@@ -193,8 +191,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme) // �
             context.Response.StatusCode = 200; // HTTP 200 + body 中 code 表示错误类型
             var result = ApiResult.Fail(ErrorCode.Unauthorized, "认证失败，请重新登录");
             await context.Response.WriteAsync(
-                System.Text.Json.JsonSerializer.Serialize(result,
-                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
+                JsonSerializer.Serialize(result,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         },
 
         // ④ 鉴权失败（有 Token 但无权限）统一返回 ApiResult 格式
@@ -204,8 +202,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme) // �
             context.Response.StatusCode = 200;
             var result = ApiResult.Fail(ErrorCode.Forbidden, "没有访问权限");
             await context.Response.WriteAsync(
-                System.Text.Json.JsonSerializer.Serialize(result,
-                    new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }));
+                JsonSerializer.Serialize(result,
+                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }));
         }
     };
 });

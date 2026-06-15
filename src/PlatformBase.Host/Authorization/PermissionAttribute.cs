@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;              // 提供 AuthorizeAttribute 基类
+using Microsoft.AspNetCore.Authorization;
 
 namespace PlatformBase.Host.Authorization;
 

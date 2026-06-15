@@ -1,8 +1,7 @@
 using System.Text.RegularExpressions;
-using PlatformBase.Application.Dtos;
-using PlatformBase.Application.Services;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
+using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
 using PlatformBase.Host.NotificationProviders;
 
@@ -75,7 +74,7 @@ public class NotificationService : INotificationService
         int pageIndex = 1, int pageSize = 20, CancellationToken ct = default)
     {
         var items = await _uow.Repository<Notification>()
-            .GetPagedAsync(new Core.Models.PagedRequest
+            .GetPagedAsync(new PagedRequest
             {
                 PageIndex = pageIndex,
                 PageSize = pageSize,
