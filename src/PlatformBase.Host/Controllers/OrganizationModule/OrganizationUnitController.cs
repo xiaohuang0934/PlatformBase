@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
+using PlatformBase.Application.Dtos.UserModule;
+using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
 using PlatformBase.Host.Authorization;
@@ -60,6 +62,27 @@ public class OrganizationUnitController : ControllerBase
     {
         await _service.DeleteAsync(id, ct);
         return ApiResult.Ok("删除成功");
+    }
+
+    // ═══════════════════ 部门用户查询 ═══════════════════
+
+    /// <summary>查询部门下的用户（仅本部门）</summary>
+    [HttpGet("{id:guid}/users")]
+    [Permission("org-units.list")]
+    public async Task<ApiResult<IReadOnlyList<User>>> GetUsers(Guid id, CancellationToken ct)
+    {
+        var users = await _service.GetUsersAsync(id, ct);
+        return ApiResult<IReadOnlyList<User>>.Ok(users);
+    }
+
+    /// <summary>分页查询部门及其子级部门的用户</summary>
+    [HttpGet("{id:guid}/users/with-children")]
+    [Permission("org-units.list")]
+    public async Task<ApiResult<PagedResult<UserDto>>> GetUsersWithChildren(
+        Guid id, [FromQuery] UserQuery query, CancellationToken ct)
+    {
+        var result = await _service.GetUsersPagedAsync(id, query, ct);
+        return ApiResult<PagedResult<UserDto>>.Ok(result);
     }
 }
 

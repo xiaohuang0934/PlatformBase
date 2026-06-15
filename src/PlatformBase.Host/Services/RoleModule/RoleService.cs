@@ -22,26 +22,34 @@ public class RoleService : IRoleService
     private readonly AppDbContext _context;
     private readonly IDatabase? _redis;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IDataScopeAuthorizationService _authService;
 
-    public RoleService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider, ICurrentUserContext currentUser)
+    public RoleService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider,
+        ICurrentUserContext currentUser, IDataScopeAuthorizationService authService)
     {
         _uow = uow;
         _context = context;
         _redis = serviceProvider.GetService<IConnectionMultiplexer>()?.GetDatabase();
         _currentUser = currentUser;
+        _authService = authService;
     }
 
     public async Task<PagedResult<RoleDto>> GetPagedAsync(RoleQuery query, CancellationToken ct = default)
     {
-        var accessibleIds = _currentUser.AccessibleTenantIds;
         var kw = query.Keyword?.Trim().ToUpperInvariant();
 
+        // 计算生效的租户列表
+        IReadOnlyList<Guid> effectiveTenantIds = ResolveEffectiveTenantIds(query.TenantIds);
+
         var filter = ((Expression<Func<Role, bool>>?)null)
-            .AppendIf(accessibleIds.Count > 0 && _currentUser.IsSuperAdmin,
-                r => r.TenantId == null || accessibleIds.Contains(r.TenantId.Value))
-            .AppendIf(accessibleIds.Count > 0 && !_currentUser.IsSuperAdmin,
-                r => r.TenantId != null && accessibleIds.Contains(r.TenantId.Value))
-            .AppendIf(accessibleIds.Count == 0 && !_currentUser.IsSuperAdmin, r => false)
+            .AppendIf(effectiveTenantIds.Count > 0 && _currentUser.UserType == UserType.PlatformAdmin,
+                r => r.TenantId == null || effectiveTenantIds.Contains(r.TenantId.Value))
+            .AppendIf(effectiveTenantIds.Count > 0 && _currentUser.UserType != UserType.PlatformAdmin,
+                r => r.TenantId == effectiveTenantIds.FirstOrDefault())
+            .AppendIf(effectiveTenantIds.Count == 0 && _currentUser.UserType != UserType.PlatformAdmin,
+                r => false)
+            .AppendIf(effectiveTenantIds.Count == 0 && _currentUser.UserType == UserType.PlatformAdmin,
+                r => r.TenantId == null)
             .AppendIf(!string.IsNullOrWhiteSpace(kw), r => r.NormalizedName.Contains(kw!))
             .AppendIf(query.IsSystem.HasValue, r => r.IsSystem == query.IsSystem.Value);
 
@@ -55,10 +63,38 @@ public class RoleService : IRoleService
             result.Items.Select(ToDto));
     }
 
+    /// <summary>
+    /// 解析生效的租户列表：
+    /// - 平台用户传了 tenantIds → 校验后返回
+    /// - 否则 → 返回 CurrentTenantIds
+    /// </summary>
+    private IReadOnlyList<Guid> ResolveEffectiveTenantIds(List<Guid>? queryTenantIds)
+    {
+        if (_currentUser.UserType != UserType.PlatformAdmin)
+            return _currentUser.CurrentTenantIds;
+
+        if (queryTenantIds == null || queryTenantIds.Count == 0)
+            return _currentUser.CurrentTenantIds;
+
+        var invalid = queryTenantIds.Where(t => !_currentUser.TenantIds.Contains(t)).ToList();
+        if (invalid.Count > 0)
+            throw new BusinessException($"无权访问租户: {invalid[0]}", ErrorCode.Forbidden);
+
+        return queryTenantIds;
+    }
+
     public async Task<RoleDto?> GetByIdAsync(Guid id, CancellationToken ct = default)
     {
         var entity = await _uow.Repository<Role>().GetByIdAsync(id, ct);
         return entity == null ? null : ToDto(entity);
+    }
+
+    /// <inheritdoc />
+    public async Task<List<Role>> GetByIdsAsync(List<Guid> ids, CancellationToken ct = default)
+    {
+        if (ids == null || ids.Count == 0) return [];
+        return await _uow.Repository<Role>()
+            .FindAsync(r => ids.Contains(r.Id), ct);
     }
 
     public async Task<RoleDto> CreateAsync(CreateRoleDto dto, CancellationToken ct = default)
@@ -69,13 +105,25 @@ public class RoleService : IRoleService
         if (exists)
             throw new BusinessException($"角色名称 '{dto.Name}' 已存在", ErrorCode.DuplicateRecord);
 
+        // 集中式权限校验 + 租户覆盖
+        var auth = await _authService.AuthorizeAsync(
+            bannedUserTypes: [UserType.TenantUser],
+            requestTenantId: dto.TenantId,
+            requestUserType: null,
+            requestOrgIds: null,
+            requestRoleIds: null,
+            cancellationToken: ct);
+
+        if (auth.IsBanned)
+            throw new BusinessException(auth.BanReason ?? "无权操作", ErrorCode.NoPermissionToOperate);
+
         var role = new Role
         {
             Name = dto.Name,
             Code = dto.Code,
             NormalizedName = normalized,
             Description = dto.Description,
-            TenantId = _currentUser.CurrentTenantId
+            TenantId = auth.TenantId
         };
 
         var created = await _uow.Repository<Role>().AddAsync(role, ct);

@@ -86,4 +86,30 @@ public interface IUserService
 
     /// <summary>管理员重置用户密码，同时撤销旧 RefreshToken 并失效 Stamp 缓存</summary>
     Task ResetPasswordAsync(Guid id, string newPassword, CancellationToken cancellationToken = default);
+
+    // ───── 用户-组织架构关联管理 ─────
+
+    /// <summary>查询用户所属部门列表</summary>
+    /// <param name="userId">用户 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>部门实体列表</returns>
+    Task<IReadOnlyList<OrganizationUnit>> GetUserOrganizationsAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>将用户添加到部门</summary>
+    /// <param name="userId">用户 ID</param>
+    /// <param name="organizationUnitId">部门 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task AddToOrganizationAsync(Guid userId, Guid organizationUnitId, CancellationToken cancellationToken = default);
+
+    /// <summary>将用户从部门移除</summary>
+    /// <param name="userId">用户 ID</param>
+    /// <param name="organizationUnitId">部门 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task RemoveFromOrganizationAsync(Guid userId, Guid organizationUnitId, CancellationToken cancellationToken = default);
+
+    /// <summary>批量设置用户所属部门（全量替换）</summary>
+    /// <param name="userId">用户 ID</param>
+    /// <param name="organizationUnitIds">部门 ID 列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    Task SetOrganizationsAsync(Guid userId, IReadOnlyList<Guid> organizationUnitIds, CancellationToken cancellationToken = default);
 }

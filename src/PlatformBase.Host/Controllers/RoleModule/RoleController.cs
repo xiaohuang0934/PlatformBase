@@ -26,8 +26,11 @@ public class RoleController : ControllerBase
     [HttpGet]
     [Permission("roles.list")]
     public async Task<ApiResult<PagedResult<RoleDto>>> GetPaged(
-        [FromQuery] RoleQuery query, CancellationToken ct)
+        [FromQuery] RoleQuery query,
+        [FromQuery] List<Guid>? tenantIds,  // 平台用户可指定查询的租户列表
+        CancellationToken ct)
     {
+        if (tenantIds != null) query.TenantIds = tenantIds;
         var result = await _service.GetPagedAsync(query, ct);
         return ApiResult<PagedResult<RoleDto>>.Ok(result);
     }

@@ -68,3 +68,7 @@ export function getUserList(params?: { keyword?: string, isActive?: boolean, pag
 import { downloadFile } from '@/utils/download'
 downloadFile('/api/v1/files/{id}/download', 'file.pdf')
 ```
+
+---
+
+> **后端 API 参考**：[docs/api-reference.md](../../docs/api-reference.md) — 全量 API 端点表（方法/路径/权限/说明）

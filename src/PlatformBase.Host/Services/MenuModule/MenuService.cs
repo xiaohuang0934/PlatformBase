@@ -1,4 +1,5 @@
 using PlatformBase.Core.Entities;
+using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Repositories;
 using PlatformBase.Core.Services;
 
@@ -26,7 +27,7 @@ public class MenuService : IMenuService
             .FindAsync(m => m.IsEnabled, ct);
 
         // 平台管理员看全部，不裁剪
-        if (_currentUser.IsSuperAdmin)
+        if (_currentUser.UserType == UserType.PlatformAdmin)
             return BuildTree(allMenus, null); // 平台管理员看全部
 
         // 普通用户：取权限编码集合
@@ -52,6 +53,17 @@ public class MenuService : IMenuService
 
     public async Task<Menu> CreateAsync(Menu menu, CancellationToken ct = default)
     {
+        // 校验父菜单归属（必须属于同一租户）
+        if (menu.ParentId != null)
+        {
+            var parent = await _uow.Repository<Menu>().GetByIdAsync(menu.ParentId.Value, ct);
+            if (parent == null)
+                throw new BusinessException("父菜单不存在", ErrorCode.DataNotFound);
+
+            if (_currentUser.TenantId != null && parent.TenantId != _currentUser.TenantId)
+                throw new BusinessException("父菜单不属于当前租户", ErrorCode.ParentOrgNotInTenant);
+        }
+
         var created = await _uow.Repository<Menu>().AddAsync(menu, ct);
         await _uow.SaveChangesAsync(ct);
         return created;

@@ -123,3 +123,25 @@ public abstract class TenantSoftDeleteEntity : SoftDeleteEntity, ITenantAware
 {
     public Guid TenantId { get; set; }
 }
+
+// ═══════════════════ 部门数据范围接口与基类 ═══════════════════
+
+/// <summary>
+/// 部门数据范围标记接口
+/// 实现此接口的实体自动受 DataScopeFilter 过滤保护
+/// </summary>
+public interface IDataScopeAware
+{
+    /// <summary>所属部门 ID（null 表示未归属任何部门）</summary>
+    Guid? OrganizationUnitId { get; set; }
+}
+
+/// <summary>
+/// 部门级数据实体基类
+/// 继承此类的实体自动具备：租户隔离 + 软删除 + 部门数据范围
+/// </summary>
+public abstract class DataScopeEntity : TenantSoftDeleteEntity, IDataScopeAware
+{
+    /// <summary>所属部门 ID（null 表示未归属任何部门，属于租户级公共数据）</summary>
+    public Guid? OrganizationUnitId { get; set; }
+}

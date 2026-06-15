@@ -1,4 +1,5 @@
 using PlatformBase.Core.Entities;
+using PlatformBase.Core.Models;
 
 namespace PlatformBase.Application.Services.OrganizationModule;
 
@@ -17,6 +18,30 @@ public interface IOrganizationUnitService
     Task<OrganizationUnit> UpdateAsync(Guid id, string? name, Guid? parentId, int? sortOrder, CancellationToken ct = default);
     /// <summary>删除部门（软删除）</summary>
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>根据ID列表批量查询部门</summary>
+    Task<List<OrganizationUnit>> GetByIdsAsync(List<Guid> ids, CancellationToken ct = default);
+
+    // ───── 部门用户查询 ─────
+
+    /// <summary>查询部门下的用户（仅本部门）</summary>
+    /// <param name="organizationUnitId">部门 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>用户实体列表</returns>
+    Task<IReadOnlyList<User>> GetUsersAsync(Guid organizationUnitId, CancellationToken cancellationToken = default);
+
+    /// <summary>查询部门及其子级部门的所有用户</summary>
+    /// <param name="organizationUnitId">部门 ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>用户实体列表</returns>
+    Task<IReadOnlyList<User>> GetUsersWithChildrenAsync(Guid organizationUnitId, CancellationToken cancellationToken = default);
+
+    /// <summary>分页查询部门及其子级部门的用户</summary>
+    /// <param name="organizationUnitId">部门 ID</param>
+    /// <param name="query">分页查询参数</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>分页结果</returns>
+    Task<PagedResult<UserDto>> GetUsersPagedAsync(Guid organizationUnitId, UserQuery query, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

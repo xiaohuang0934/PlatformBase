@@ -28,7 +28,7 @@ public static class Config
         new("api1", "PlatformBase API")
         {
             Scopes = { "api1" },
-            UserClaims = { "role", "email", "security_stamp" }
+            UserClaims = { "security_stamp", "user_type", "super_admin" }
         }
     ];
 

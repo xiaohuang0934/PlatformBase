@@ -1,8 +1,10 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
+using PlatformBase.Application.Services.AuthorizationModule;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Models;
+using PlatformBase.Core.Services;
 using PlatformBase.Host.Authorization;
 
 namespace PlatformBase.Host.Controllers.ImportExportModule;
@@ -17,11 +19,19 @@ public class ImportExportController : ControllerBase
 {
     private readonly IExportService _exportService;
     private readonly IImportService _importService;
+    private readonly ICurrentUserContext _currentUser;
+    private readonly IDataScopeAuthorizationService _authService;
 
-    public ImportExportController(IExportService exportService, IImportService importService)
+    public ImportExportController(
+        IExportService exportService,
+        IImportService importService,
+        ICurrentUserContext currentUser,
+        IDataScopeAuthorizationService authService)
     {
         _exportService = exportService;
         _importService = importService;
+        _currentUser = currentUser;
+        _authService = authService;
     }
 
     /// <summary>导出用户列表为 Excel</summary>
@@ -38,7 +48,7 @@ public class ImportExportController : ControllerBase
             Keyword = keyword,
             IsActive = isActive,
             PageIndex = 1,
-            PageSize = 10000 // 导出上限
+            PageSize = 10000
         }, ct);
 
         var columns = new List<ColumnMapping>
@@ -55,16 +65,32 @@ public class ImportExportController : ControllerBase
         return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "users.xlsx");
     }
 
-    /// <summary>导入用户</summary>
+    /// <summary>
+    /// 批量导入用户
+    /// 平台管理员必须指定租户ID（query参数），租户管理员自动使用当前租户
+    /// </summary>
     [HttpPost("users")]
     [Permission("users.create")]
     public async Task<ApiResult<object>> ImportUsers(
         [FromServices] IUserService userService,
         IFormFile file,
+        [FromQuery] Guid? tenantId,
         CancellationToken ct = default)
     {
         if (file == null || file.Length == 0)
             return ApiResult<object>.Fail(ErrorCode.BadRequest, "请选择文件");
+
+        // 集中式权限校验 + 租户覆盖
+        var auth = await _authService.AuthorizeAsync(
+            bannedUserTypes: [UserType.TenantUser],
+            requestTenantId: tenantId,
+            requestUserType: UserType.TenantUser,
+            requestOrgIds: null,
+            requestRoleIds: null,
+            cancellationToken: ct);
+
+        if (auth.IsBanned)
+            return ApiResult<object>.Fail(ErrorCode.NoPermissionToOperate, auth.BanReason ?? "无权操作");
 
         var columns = new List<ColumnMapping>
         {
@@ -97,7 +123,9 @@ public class ImportExportController : ControllerBase
                     Email = dto.Email,
                     NormalizedEmail = dto.Email?.ToUpperInvariant(),
                     PhoneNumber = dto.PhoneNumber,
-                    IsActive = true
+                    IsActive = true,
+                    TenantId = auth.TenantId,
+                    UserType = auth.UserType
                 }, ct);
                 successCount++;
             }

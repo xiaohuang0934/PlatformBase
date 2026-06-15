@@ -7,7 +7,7 @@ PlatformBase 采用 **自建 User 体系 + IdentityServer4 + JWT Bearer** 架构
 - **User 实体** — 继承 `SoftDeleteEntity`，密码使用 BCrypt 哈希
 - **IdentityServer4** — OAuth2 Token 签发服务（Password Grant），嵌入式同进程部署
 - **JwtBearer** — 验证请求中的 Bearer token（共享 X509 签名密钥）
-- **ICurrentUserContext** — 注入到 Service / DbContext，提供当前用户会话上下文
+- **ICurrentUserContext** — 注入到 Service / DbContext，提供当前用户会话上下文 + 租户范围
 
 ## User 实体 / User Entity
 
@@ -17,10 +17,20 @@ User : SoftDeleteEntity (继承审计 + 软删除)
   ├ Email / NormalizedEmail            — 邮箱 + 大写索引
   ├ PasswordHash                       — BCrypt 哈希（含算法+盐+哈希）
   ├ SecurityStamp                      — 密码变更时更新，旧 token 失效
+  ├ TenantId (nullable)                — 所属租户（null = 平台账号）
+  ├ UserType                           — 用户类型枚举
   ├ LockoutEnd / LockoutEnabled        — 失败锁定
   ├ AccessFailedCount                  — 累计失败次数
   └ IsActive                           — 账号启用/禁用
 ```
+
+## 用户类型枚举 / UserType Enum
+
+| 值 | 类型 | 说明 |
+|----|------|------|
+| 1 | `PlatformAdmin` | 平台管理员（跨租户，TenantId=null） |
+| 2 | `TenantAdmin` | 租户管理员（TenantId=所属租户） |
+| 3 | `TenantUser` | 租户普通用户（TenantId=所属租户） |
 
 ## 登录流程 / Login Flow
 
@@ -37,7 +47,7 @@ POST /api/auth/login (AllowAnonymous)
   │
   ├─ ④ RecordLoginSuccess → 清零 AccessFailedCount
   │
-  ├─ ⑤ 获取角色 → 构建 Claims
+  ├─ ⑤ 构建 Claims（UserId + UserName + SecurityStamp + UserType）
   │
   └─ ⑥ IdentityServerTools.IssueJwtAsync(lifetime:3600, claims)
       → 返回 JWT access_token
@@ -51,13 +61,15 @@ POST /api/auth/login (AllowAnonymous)
 var claims = new List<Claim> {
     new(ClaimTypes.NameIdentifier, user.Id),
     new(ClaimTypes.Name, user.Username),
-    new("aud", "api1"),                    // 必须包含 audience
+    new("aud", "api1"),
     new("security_stamp", user.SecurityStamp),
-    // + Email + Role claims
+    new("user_type", userType.ToString())
 };
 
 var token = await _identityServerTools.IssueJwtAsync(3600, claims);
 ```
+
+> JWT 仅包含身份核心信息。租户信息（TenantId/TenantIds）从数据库查询 + Redis 缓存获取，确保实时性。
 
 **验证端（JwtBearer Middleware）**：
 
@@ -65,7 +77,7 @@ var token = await _identityServerTools.IssueJwtAsync(3600, claims);
 .AddJwtBearer(options => {
     options.TokenValidationParameters = new() {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = signingKey,        // X509 公钥
+        IssuerSigningKey = signingKey,
         ValidateIssuer = true,
         ValidIssuer = "http://localhost:5269",
         ValidateAudience = true,
@@ -82,44 +94,51 @@ var token = await _identityServerTools.IssueJwtAsync(3600, claims);
 ```csharp
 public interface ICurrentUserContext
 {
+    // ═══════ 身份信息（来自 JWT Claims）═══════
     Guid? UserId { get; }
     string? UserName { get; }
-    string? Email { get; }
-    IReadOnlyList<string> Roles { get; }
     bool IsAuthenticated { get; }
     string? IpAddress { get; }
+    string? ClientId { get; }
+    UserType UserType { get; }
+    
+    // ═══════ 租户范围（DB 查询 + Redis 缓存）═══════
+    Guid? TenantId { get; }              // 归属租户（租户用户有值，平台用户 null）
+    Guid? CurrentTenantId { get; }       // 当前视角租户（用于单租户过滤）
+    IReadOnlyList<Guid> TenantIds { get; } // 平台用户分配的租户列表
+    IReadOnlyList<Guid> CurrentTenantIds { get; } // 当前生效的租户列表
+    
+    // ═══════ 操作方法 ════════
+    void SetCurrentTenant(Guid? tenantId);
+    void SetCurrentTenants(IReadOnlyList<Guid>? tenantIds);
+    bool HasAccess(Guid tenantId);
 }
 ```
 
-**注入链路**：
+### 租户属性对照表
 
-```
-HTTP Request → JwtBearer 验证 → HttpContext.User 填充 (ClaimsPrincipal)
-  │
-  ├─ Controller / Service
-  │     注入 ICurrentUserContext
-  │     .UserId / .UserName / .Roles / .IsAuthenticated
-  │
-  └─ AppDbContext.SaveChangesAsync()
-         ApplyAuditFields(_currentUserService)
-         → CreatedBy / UpdatedBy / DeletedBy 自动填充
-```
+| 属性 | 租户用户 | 平台用户 |
+|------|---------|---------|
+| `TenantId` | User.TenantId | null |
+| `TenantIds` | [] | PlatformUserTenants 分配列表 |
+| `CurrentTenantId` | TenantId | SetCurrentTenant 设置值 / null |
+| `CurrentTenantIds` | [TenantId] | SetCurrentTenants 设置值 / [CurrentTenantId] / TenantIds |
 
-**使用示例**：
+### 数据隔离逻辑
 
 ```csharp
-public class OrderService
-{
-    private readonly ICurrentUserContext _user;
-
-    public async Task CreateAsync(CreateOrderDto dto)
-    {
-        var userId = _user.UserId;      // 当前用户 ID
-        var username = _user.UserName;  // 当前用户名
-        // ...
-    }
-}
+// Service 层统一使用 CurrentTenantIds
+var query = _uow.Repository<Order>().FindAsync(
+    o => _currentUser.CurrentTenantIds.Contains(o.TenantId));
 ```
+
+### Redis 缓存策略
+
+| Key | TTL | 说明 |
+|-----|-----|------|
+| `user:tenant:{userId}` | 30min | 租户信息缓存 |
+
+**缓存失效时机**：用户 TenantId 变更、PlatformUserTenants 分配变更
 
 ## 登录锁定 / Login Lockout
 
@@ -128,28 +147,13 @@ public class OrderService
 | MaxFailedAttempts | 5 | 连续失败次数阈值 |
 | LockoutMinutes | 5 | 锁定持续时间 |
 
-```csharp
-// UserService.RecordLoginFailedAsync
-user.AccessFailedCount++;
-if (user.AccessFailedCount >= 5)
-    user.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(5);
-// 之后所有登录尝试（即使密码正确）都返回"账户已锁定"
-```
-
-**Redis 频控辅助**（Redis 可用时）：
-
-| Key | 维度 | TTL | 作用 |
-|-----|------|-----|------|
-| `login:fail:{ip}` | IP | 5min | 单 IP 频繁尝试拦截 |
-| `login:fail:{username}` | 用户名 | 5min | 单用户名频繁尝试拦截 |
-
 ## 密码修改 / Change Password
 
 ```
 POST /api/auth/change-password (Authorized)
   ├─ 验证当前密码
   ├─ BCrypt.HashPassword(new) → 更新 PasswordHash
-  ├─ SecurityStamp = Guid.NewGuid() → 已签发旧 token 逐步失效
+  ├─ SecurityStamp = Guid.NewGuid() → 旧 token 即时失效
   └─ 返回成功
 ```
 
@@ -166,16 +170,7 @@ POST /api/auth/change-password (Authorized)
 
 首次启动自动创建：
 
-| 类型 | 数据 |
-|------|------|
-| 管理员 | `admin` / `Admin@123` → 角色 Admin |
-| 测试用户 | `testuser` / `Test@123` → 角色 User |
-
-## Swagger 测试 / Swagger Testing
-
-```
-① POST /api/auth/login → {"username":"admin","password":"Admin@123"}
-② 复制返回的 accessToken
-③ 点击 Authorize 🔒 → 粘贴 token → Authorize
-④ 所有端点自动携带 Authorization: Bearer {token}
-```
+| 类型 | 数据 | UserType |
+|------|------|----------|
+| 管理员 | `admin` / `Admin@123` | PlatformAdmin |
+| 测试用户 | `testuser` / `Test@123` | TenantUser |

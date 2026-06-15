@@ -1,3 +1,4 @@
+using PlatformBase.Application.Services.OrganizationModule;
 using PlatformBase.Core.Entities;
 
 namespace PlatformBase.Application.Dtos.UserModule;
@@ -17,4 +18,7 @@ public class UserDto
     public IReadOnlyList<string> Roles { get; set; } = [];
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>用户所属部门列表</summary>
+    public IReadOnlyList<OrgUnitNode> OrganizationUnits { get; set; } = [];
 }

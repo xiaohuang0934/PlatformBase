@@ -6,6 +6,7 @@ using PlatformBase.Core.Extensions;
 using PlatformBase.Core.Models;
 using PlatformBase.Core.Repositories;
 using PlatformBase.Infrastructure.Data;
+using StackExchange.Redis;
 
 namespace PlatformBase.Host.Services.TenantModule;
 
@@ -16,8 +17,16 @@ public class TenantService : ITenantService
 {
     private readonly IUnitOfWork _uow;
     private readonly AppDbContext _context;
+    private readonly IDatabase? _redis;
 
-    public TenantService(IUnitOfWork uow, AppDbContext context) { _uow = uow; _context = context; }
+    private const string TenantCacheKeyPrefix = "user:tenant:";
+
+    public TenantService(IUnitOfWork uow, AppDbContext context, IServiceProvider serviceProvider)
+    {
+        _uow = uow;
+        _context = context;
+        _redis = serviceProvider.GetService<IConnectionMultiplexer>()?.GetDatabase();
+    }
 
     public async Task<PagedResult<Tenant>> GetPagedAsync(
         string? keyword = null, bool? isEnabled = null,
@@ -106,6 +115,9 @@ public class TenantService : ITenantService
         _context.PlatformUserTenants.Add(new PlatformUserTenant
         { PlatformUserId = platformUserId, TenantId = tenantId });
         await _uow.SaveChangesAsync(ct);
+
+        // 失效平台用户的租户缓存
+        InvalidateTenantCache(platformUserId);
     }
 
     public async Task RemoveTenantFromPlatformUserAsync(
@@ -117,6 +129,19 @@ public class TenantService : ITenantService
         {
             _context.PlatformUserTenants.Remove(entity);
             await _uow.SaveChangesAsync(ct);
+
+            // 失效平台用户的租户缓存
+            InvalidateTenantCache(platformUserId);
         }
+    }
+
+    /// <summary>
+    /// 失效指定用户的租户缓存（Redis DEL user:tenant:{userId}）
+    /// </summary>
+    private void InvalidateTenantCache(Guid userId)
+    {
+        if (_redis == null) return;
+        try { _redis.KeyDelete($"{TenantCacheKeyPrefix}{userId}"); }
+        catch { }
     }
 }

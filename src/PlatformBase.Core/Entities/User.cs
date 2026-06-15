@@ -51,4 +51,7 @@ public partial class User : SoftDeleteEntity
 
     /// <summary>账户是否启用（停用则无法登录）</summary>
     public bool IsActive { get; set; } = true;
+
+    /// <summary>是否超级管理员（绕过所有权限检查和数据过滤）</summary>
+    public bool IsSuperAdmin { get; set; }
 }

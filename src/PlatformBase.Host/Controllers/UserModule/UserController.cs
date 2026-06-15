@@ -20,12 +20,18 @@ namespace PlatformBase.Host.Controllers.UserModule;
 public class UserController : ControllerBase
 {
     private readonly IUserService _service;
+    private readonly IDataScopeAuthorizationService _authService;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _currentUser;
 
-    public UserController(IUserService service, IUnitOfWork uow, ICurrentUserContext currentUser)
+    public UserController(
+        IUserService service,
+        IDataScopeAuthorizationService authService,
+        IUnitOfWork uow,
+        ICurrentUserContext currentUser)
     {
         _service = service;
+        _authService = authService;
         _uow = uow;
         _currentUser = currentUser;
     }
@@ -34,13 +40,16 @@ public class UserController : ControllerBase
     [HttpGet]
     [Permission("users.list")]
     public async Task<ApiResult<PagedResult<UserDto>>> GetPaged(
-        [FromQuery] UserQuery query, CancellationToken ct)
+        [FromQuery] UserQuery query,
+        [FromQuery] List<Guid>? tenantIds,  // 平台用户可指定查询的租户列表
+        CancellationToken ct)
     {
+        if (tenantIds != null) query.TenantIds = tenantIds;
         var result = await _service.GetPagedAsync(query, ct);
         return ApiResult<PagedResult<UserDto>>.Ok(result);
     }
 
-    /// <summary>查询用户详情（含角色列表）</summary>
+    /// <summary>查询用户详情（含角色列表和部门列表）</summary>
     [HttpGet("{id:guid}")]
     [Permission("users.list")]
     public async Task<ApiResult<UserDto>> GetById(Guid id, CancellationToken ct)
@@ -50,6 +59,8 @@ public class UserController : ControllerBase
             return ApiResult<UserDto>.Fail(ErrorCode.UserNotFound, "用户不存在");
 
         var roles = await _service.GetRolesAsync(user.Id, ct);
+        var orgs = await _service.GetUserOrganizationsAsync(user.Id, ct);
+        var orgNodes = BuildOrgNodes(orgs);
 
         return ApiResult<UserDto>.Ok(new UserDto
         {
@@ -59,7 +70,9 @@ public class UserController : ControllerBase
             EmailConfirmed = user.EmailConfirmed,
             PhoneNumber = user.PhoneNumber,
             IsActive = user.IsActive,
+            UserType = user.UserType,
             Roles = roles,
+            OrganizationUnits = orgNodes,
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt
         });
@@ -72,6 +85,18 @@ public class UserController : ControllerBase
     public async Task<ApiResult<UserDto>> Create(
         [FromBody] CreateUserDto dto, CancellationToken ct)
     {
+        // 集中式权限校验 + 参数覆盖
+        var auth = await _authService.AuthorizeAsync(
+            bannedUserTypes: [UserType.TenantUser],
+            requestTenantId: dto.TenantId,
+            requestUserType: dto.UserType,
+            requestOrgIds: dto.OrganizationUnitIds,
+            requestRoleIds: dto.RoleIds,
+            cancellationToken: ct);
+
+        if (auth.IsBanned)
+            return ApiResult<UserDto>.Fail(ErrorCode.NoPermissionToOperate, auth.BanReason ?? "无权操作");
+
         await _uow.BeginTransactionAsync(ct);
         try
         {
@@ -84,9 +109,8 @@ public class UserController : ControllerBase
                 PhoneNumber = dto.PhoneNumber,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 IsActive = true,
-                TenantId = _currentUser.CurrentTenantId,
-                UserType = _currentUser.IsSuperAdmin && _currentUser.CurrentTenantId == null
-                    ? UserType.PlatformAdmin : UserType.TenantUser
+                TenantId = auth.TenantId,
+                UserType = auth.UserType
             };
 
             var created = await _service.CreateAsync(user, ct);
@@ -97,8 +121,16 @@ public class UserController : ControllerBase
                     await _service.AddToRoleAsync(created.Id, roleId, ct);
             }
 
+            if (dto.OrganizationUnitIds?.Count > 0)
+            {
+                await _service.SetOrganizationsAsync(created.Id, dto.OrganizationUnitIds, ct);
+            }
+
             await _uow.CommitTransactionAsync(ct);
+
             var roles = await _service.GetRolesAsync(created.Id, ct);
+            var orgs = await _service.GetUserOrganizationsAsync(created.Id, ct);
+            var orgNodes = BuildOrgNodes(orgs);
 
             return ApiResult<UserDto>.Ok(new UserDto
             {
@@ -108,7 +140,9 @@ public class UserController : ControllerBase
                 EmailConfirmed = created.EmailConfirmed,
                 PhoneNumber = created.PhoneNumber,
                 IsActive = created.IsActive,
+                UserType = created.UserType,
                 Roles = roles,
+                OrganizationUnits = orgNodes,
                 CreatedAt = created.CreatedAt,
                 UpdatedAt = created.UpdatedAt
             });
@@ -131,17 +165,36 @@ public class UserController : ControllerBase
         if (user == null)
             return ApiResult<UserDto>.Fail(ErrorCode.UserNotFound, "用户不存在");
 
-        if (dto.Email != null)
+        await _uow.BeginTransactionAsync(ct);
+        try
         {
-            user.Email = dto.Email;
-            user.NormalizedEmail = dto.Email.ToUpperInvariant();
-        }
-        if (dto.PhoneNumber != null)
-            user.PhoneNumber = dto.PhoneNumber;
+            if (dto.Email != null)
+            {
+                user.Email = dto.Email;
+                user.NormalizedEmail = dto.Email.ToUpperInvariant();
+            }
+            if (dto.PhoneNumber != null)
+                user.PhoneNumber = dto.PhoneNumber;
 
-        await _service.UpdateAsync(user, ct);
+            await _service.UpdateAsync(user, ct);
+
+            if (dto.OrganizationUnitIds != null)
+            {
+                await _service.SetOrganizationsAsync(id, dto.OrganizationUnitIds, ct);
+            }
+
+            await _uow.CommitTransactionAsync(ct);
+        }
+        catch
+        {
+            await _uow.RollbackTransactionAsync(ct);
+            throw;
+        }
 
         var roles = await _service.GetRolesAsync(user.Id, ct);
+        var orgs = await _service.GetUserOrganizationsAsync(user.Id, ct);
+        var orgNodes = BuildOrgNodes(orgs);
+
         return ApiResult<UserDto>.Ok(new UserDto
         {
             Id = user.Id,
@@ -150,7 +203,9 @@ public class UserController : ControllerBase
             EmailConfirmed = user.EmailConfirmed,
             PhoneNumber = user.PhoneNumber,
             IsActive = user.IsActive,
+            UserType = user.UserType,
             Roles = roles,
+            OrganizationUnits = orgNodes,
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt
         });
@@ -228,5 +283,73 @@ public class UserController : ControllerBase
         }
 
         return ApiResult.Ok("角色分配成功");
+    }
+
+    // ═══════════════════ 用户-部门关联管理 ═══════════════════
+
+    /// <summary>获取用户所属部门列表</summary>
+    [HttpGet("{id:guid}/organizations")]
+    [Permission("users.list")]
+    public async Task<ApiResult<IReadOnlyList<OrgUnitNode>>> GetOrganizations(Guid id, CancellationToken ct)
+    {
+        var orgs = await _service.GetUserOrganizationsAsync(id, ct);
+        var nodes = BuildOrgNodes(orgs);
+        return ApiResult<IReadOnlyList<OrgUnitNode>>.Ok(nodes);
+    }
+
+    /// <summary>给用户批量分配部门（全量替换）</summary>
+    [HttpPut("{id:guid}/organizations")]
+    [Permission("users.edit")]
+    [OperationLog("assign-orgs", Resource = "User")]
+    public async Task<ApiResult> AssignOrganizations(
+        Guid id, [FromBody] IReadOnlyList<Guid> organizationUnitIds, CancellationToken ct)
+    {
+        var user = await _service.GetByIdAsync(id, ct);
+        if (user == null)
+            return ApiResult.Fail(ErrorCode.UserNotFound, "用户不存在");
+
+        await _service.SetOrganizationsAsync(id, organizationUnitIds, ct);
+        return ApiResult.Ok("部门分配成功");
+    }
+
+    /// <summary>将用户添加到部门</summary>
+    [HttpPost("{id:guid}/organizations/{orgId:guid}")]
+    [Permission("users.edit")]
+    [OperationLog("add-org", Resource = "User")]
+    public async Task<ApiResult> AddToOrganization(Guid id, Guid orgId, CancellationToken ct)
+    {
+        var user = await _service.GetByIdAsync(id, ct);
+        if (user == null)
+            return ApiResult.Fail(ErrorCode.UserNotFound, "用户不存在");
+
+        await _service.AddToOrganizationAsync(id, orgId, ct);
+        return ApiResult.Ok("已添加到部门");
+    }
+
+    /// <summary>将用户从部门移除</summary>
+    [HttpDelete("{id:guid}/organizations/{orgId:guid}")]
+    [Permission("users.edit")]
+    [OperationLog("remove-org", Resource = "User")]
+    public async Task<ApiResult> RemoveFromOrganization(Guid id, Guid orgId, CancellationToken ct)
+    {
+        var user = await _service.GetByIdAsync(id, ct);
+        if (user == null)
+            return ApiResult.Fail(ErrorCode.UserNotFound, "用户不存在");
+
+        await _service.RemoveFromOrganizationAsync(id, orgId, ct);
+        return ApiResult.Ok("已从部门移除");
+    }
+
+    /// <summary>将部门实体列表转换为树节点列表</summary>
+    private static IReadOnlyList<OrgUnitNode> BuildOrgNodes(IReadOnlyList<OrganizationUnit> orgs)
+    {
+        return orgs.Select(o => new OrgUnitNode
+        {
+            Id = o.Id,
+            Name = o.Name,
+            Code = o.Code,
+            ParentId = o.ParentId,
+            SortOrder = o.SortOrder
+        }).ToList();
     }
 }

@@ -1,9 +1,11 @@
 using System.ComponentModel.DataAnnotations;
+using PlatformBase.Core.Entities;
 
 namespace PlatformBase.Application.Dtos.UserModule;
 
 /// <summary>
 /// 创建用户请求
+/// 平台管理员必须指定 TenantId；租户管理员创建的用户自动归属当前租户
 /// </summary>
 public class CreateUserDto
 {
@@ -22,6 +24,24 @@ public class CreateUserDto
     /// <summary>手机号</summary>
     public string? PhoneNumber { get; set; }
 
-    /// <summary>初始角色 ID 列表</summary>
+    /// <summary>
+    /// 目标租户ID（平台管理员必填，租户管理员忽略）
+    /// 平台管理员创建租户级用户时，必须指定已分配的租户ID
+    /// </summary>
+    public Guid? TenantId { get; set; }
+
+    /// <summary>
+    /// 用户类型（可选）
+    /// 平台管理员可指定 TenantAdmin/TenantUser，默认 TenantUser
+    /// 租户管理员只能创建 TenantUser
+    /// </summary>
+    public UserType? UserType { get; set; }
+
+    /// <summary>初始角色 ID 列表（必填）</summary>
+    [Required(ErrorMessage = "角色不能为空")]
     public List<Guid>? RoleIds { get; set; }
+
+    /// <summary>初始部门 ID 列表（必填）</summary>
+    [Required(ErrorMessage = "部门不能为空")]
+    public List<Guid>? OrganizationUnitIds { get; set; }
 }

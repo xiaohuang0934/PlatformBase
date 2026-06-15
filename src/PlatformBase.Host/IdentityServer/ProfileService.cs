@@ -23,7 +23,7 @@ public class ProfileService : IProfileService
 
     /// <summary>
     /// 在签发 Token 时调用，向 JWT 中注入额外的用户身份信息
-    /// 注入的 Claims 包括：角色列表、安全戳
+    /// 注入的 Claims 包括：安全戳
     /// </summary>
     public async Task GetProfileDataAsync(ProfileDataRequestContext context)
     {
@@ -43,16 +43,16 @@ public class ProfileService : IProfileService
 
         var claims = new List<Claim>(context.Subject.Claims)
         {
-            // 安全戳：用于下游服务验证用户凭证是否已有变更
-            new("security_stamp", user.SecurityStamp)
+            new("security_stamp", user.SecurityStamp),
+            new("user_type", ((int)user.UserType).ToString()),
+            new("super_admin", user.IsSuperAdmin ? "1" : "0")
         };
 
-        // 注入角色 Claims
-        var roles = await _userService.GetRolesAsync(guid);
-        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
+        _logger.LogWarning("ProfileService.GetProfileData: user={User}, superAdmin={SuperAdmin}, reqTypes={Types}",
+            user.Username, user.IsSuperAdmin,
+            string.Join(",", context.RequestedClaimTypes));
 
-        _logger.LogDebug("GetProfileData: 用户 {Username} 角色={Roles}", user.Username,
-            string.Join(",", roles));
+        context.IssuedClaims = claims;
 
         context.IssuedClaims = claims;
     }

@@ -77,6 +77,16 @@ public class UserService : IUserService
     /// <inheritdoc />
     public async Task UpdateAsync(User user, CancellationToken cancellationToken = default)
     {
+        // 检测 TenantId 变更 → 失效租户缓存
+        var existing = await _context.Users
+            .AsNoTracking()
+            .Where(u => u.Id == user.Id)
+            .Select(u => new { u.TenantId })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existing != null && existing.TenantId != user.TenantId)
+            _currentUser.InvalidateTenantCache();
+
         user.NormalizedUsername = StringExtensions.Normalize(user.Username);
         user.NormalizedEmail = user.Email != null ? StringExtensions.Normalize(user.Email) : null;
 
@@ -214,16 +224,20 @@ public class UserService : IUserService
     /// <inheritdoc />
     public async Task<PagedResult<UserDto>> GetPagedAsync(UserQuery query, CancellationToken ct = default)
     {
-        var accessibleIds = _currentUser.AccessibleTenantIds;
         var kw = query.Keyword?.Trim().ToUpperInvariant();
 
+        // 计算生效的租户列表
+        IReadOnlyList<Guid> effectiveTenantIds = ResolveEffectiveTenantIds(query.TenantIds);
+
         var filter = ((Expression<Func<User, bool>>?)null)
-            .AppendIf(accessibleIds.Count > 0 && _currentUser.IsSuperAdmin,
-                u => u.TenantId == null || accessibleIds.Contains(u.TenantId.Value))
-            .AppendIf(accessibleIds.Count > 0 && !_currentUser.IsSuperAdmin,
-                u => u.TenantId != null && accessibleIds.Contains(u.TenantId.Value))
-            .AppendIf(accessibleIds.Count == 0 && !_currentUser.IsSuperAdmin,
+            .AppendIf(effectiveTenantIds.Count > 0 && _currentUser.UserType == UserType.PlatformAdmin,
+                u => u.TenantId == null || effectiveTenantIds.Contains(u.TenantId.Value))
+            .AppendIf(effectiveTenantIds.Count > 0 && _currentUser.UserType != UserType.PlatformAdmin,
+                u => u.TenantId == effectiveTenantIds.FirstOrDefault())
+            .AppendIf(effectiveTenantIds.Count == 0 && _currentUser.UserType != UserType.PlatformAdmin,
                 u => false)
+            .AppendIf(effectiveTenantIds.Count == 0 && _currentUser.UserType == UserType.PlatformAdmin,
+                u => u.TenantId == null)
             .AppendIf(query.IsActive.HasValue,
                 u => u.IsActive == query.IsActive.Value)
             .AppendIf(!string.IsNullOrWhiteSpace(kw),
@@ -267,6 +281,29 @@ public class UserService : IUserService
         }).ToList();
 
         return new PagedResult<UserDto>(result.TotalCount, result.PageIndex, result.PageSize, dtos);
+    }
+
+    /// <summary>
+    /// 解析生效的租户列表：
+    /// - 平台用户传了 tenantIds → 校验后返回
+    /// - 否则 → 返回 CurrentTenantIds
+    /// </summary>
+    private IReadOnlyList<Guid> ResolveEffectiveTenantIds(List<Guid>? queryTenantIds)
+    {
+        // 租户用户：直接返回 CurrentTenantIds（只有一个租户）
+        if (_currentUser.UserType != UserType.PlatformAdmin)
+            return _currentUser.CurrentTenantIds;
+
+        // 平台用户：未传 tenantIds → 返回 CurrentTenantIds
+        if (queryTenantIds == null || queryTenantIds.Count == 0)
+            return _currentUser.CurrentTenantIds;
+
+        // 平台用户：传了 tenantIds → 校验是否在 TenantIds 范围内
+        var invalid = queryTenantIds.Where(t => !_currentUser.TenantIds.Contains(t)).ToList();
+        if (invalid.Count > 0)
+            throw new BusinessException($"无权访问租户: {invalid[0]}", ErrorCode.Forbidden);
+
+        return queryTenantIds;
     }
 
     /// <inheritdoc />
@@ -342,5 +379,102 @@ public class UserService : IUserService
         if (_redis == null) return;
         try { await _redis.KeyDeleteAsync($"stamp:{userId}"); }
         catch { /* Redis 不可用，降级跳过 */ }
+    }
+
+    // ═══════════════════ 用户-组织架构关联管理 ═══════════════════
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<OrganizationUnit>> GetUserOrganizationsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var orgIds = await _context.Set<UserOrganizationUnit>()
+            .Where(uo => uo.UserId == userId)
+            .Select(uo => uo.OrganizationUnitId)
+            .ToListAsync(cancellationToken);
+
+        if (orgIds.Count == 0) return [];
+
+        var orgs = await _uow.Repository<OrganizationUnit>()
+            .FindAsync(o => orgIds.Contains(o.Id), cancellationToken);
+
+        return orgs;
+    }
+
+    /// <inheritdoc />
+    public async Task AddToOrganizationAsync(Guid userId, Guid organizationUnitId, CancellationToken cancellationToken = default)
+    {
+        var exists = await _context.Set<UserOrganizationUnit>()
+            .AnyAsync(uo => uo.UserId == userId && uo.OrganizationUnitId == organizationUnitId, cancellationToken);
+
+        if (exists) return;
+
+        var orgExists = await _uow.Repository<OrganizationUnit>()
+            .AnyAsync(o => o.Id == organizationUnitId, cancellationToken);
+        if (!orgExists)
+            throw new BusinessException("部门不存在", ErrorCode.DataNotFound);
+
+        _context.Set<UserOrganizationUnit>().Add(new UserOrganizationUnit
+        {
+            UserId = userId,
+            OrganizationUnitId = organizationUnitId
+        });
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _currentUser.InvalidateOrganizationCache();
+    }
+
+    /// <inheritdoc />
+    public async Task RemoveFromOrganizationAsync(Guid userId, Guid organizationUnitId, CancellationToken cancellationToken = default)
+    {
+        var userOrg = await _context.Set<UserOrganizationUnit>()
+            .FirstOrDefaultAsync(uo => uo.UserId == userId && uo.OrganizationUnitId == organizationUnitId, cancellationToken);
+
+        if (userOrg != null)
+        {
+            _context.Set<UserOrganizationUnit>().Remove(userOrg);
+            await _context.SaveChangesAsync(cancellationToken);
+            _currentUser.InvalidateOrganizationCache();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task SetOrganizationsAsync(Guid userId, IReadOnlyList<Guid> organizationUnitIds, CancellationToken cancellationToken = default)
+    {
+        var user = await GetByIdAsync(userId, cancellationToken);
+        if (user == null)
+            throw new BusinessException("用户不存在", ErrorCode.UserNotFound);
+
+        // 校验部门是否存在且属于用户所在租户
+        if (organizationUnitIds.Count > 0)
+        {
+            var validOrgs = await _uow.Repository<OrganizationUnit>()
+                .FindAsync(o => organizationUnitIds.Contains(o.Id), cancellationToken);
+
+            if (validOrgs.Count != organizationUnitIds.Count)
+                throw new BusinessException("部分部门不存在", ErrorCode.DataNotFound);
+
+            var userTenantId = user.TenantId;
+            var invalidOrgs = validOrgs.Where(o => o.TenantId != userTenantId).ToList();
+            if (invalidOrgs.Count > 0)
+                throw new BusinessException("部门不属于用户所在租户", ErrorCode.OrganizationNotInTenant);
+        }
+
+        // 移除现有关联
+        var existingOrgs = await _context.Set<UserOrganizationUnit>()
+            .Where(uo => uo.UserId == userId)
+            .ToListAsync(cancellationToken);
+        _context.Set<UserOrganizationUnit>().RemoveRange(existingOrgs);
+
+        // 添加新关联
+        foreach (var orgId in organizationUnitIds)
+        {
+            _context.Set<UserOrganizationUnit>().Add(new UserOrganizationUnit
+            {
+                UserId = userId,
+                OrganizationUnitId = orgId
+            });
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        _currentUser.InvalidateOrganizationCache();
     }
 }

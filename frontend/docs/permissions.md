@@ -42,3 +42,7 @@
 ```html
 <el-table-column v-if="auth.isSuperAdmin" prop="id" label="ID" />
 ```
+
+---
+
+> **后端权限文档**：[docs/permissions.md](../../docs/permissions.md) — RBAC 三层模型、权限判定链路、种子数据、Redis 缓存策略

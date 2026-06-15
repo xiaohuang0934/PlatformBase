@@ -180,3 +180,7 @@ Serilog 双输出：
 - **Console** — 实时控制台输出，格式 `[yyyy-MM-dd HH:mm:ss Level] SourceContext: Message`
 - **File** — 按天滚动写入 `logs/log-{date}.txt`，保留最近 30 天
 - **Minimum Level** — Information（EF Core 为 Warning）
+
+---
+
+> **文档导航**：[docs/README.md](README.md) — 全部文档索引，含按角色推荐阅读路径

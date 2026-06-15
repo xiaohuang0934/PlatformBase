@@ -1,3 +1,4 @@
+using PlatformBase.Core.Entities;
 using PlatformBase.Core.Models;
 
 namespace PlatformBase.Application.Services.RoleModule;
@@ -18,6 +19,12 @@ public interface IRoleService
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>角色 DTO，未找到返回 null</returns>
     Task<RoleDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
+    /// <summary>根据ID列表批量查询角色</summary>
+    /// <param name="ids">角色ID列表</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>角色实体列表</returns>
+    Task<List<Role>> GetByIdsAsync(List<Guid> ids, CancellationToken cancellationToken = default);
 
     /// <summary>创建角色（自动填入当前请求的 TenantId）</summary>
     /// <param name="dto">创建请求（名称、描述）</param>

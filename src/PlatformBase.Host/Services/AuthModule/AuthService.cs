@@ -88,9 +88,8 @@ public class AuthService : IAuthService
 
         await _userService.RecordLoginSuccessAsync(user.Id, cancellationToken);
         await DeleteFailCountAsync(failKey);
-        var roles = await _userService.GetRolesAsync(user.Id, cancellationToken);
         var (accessToken, refreshToken) = await IssueTokensAsync(user.Id, user.Username, user.SecurityStamp,
-            user.Email, roles, user.TenantId, (int)user.UserType, cancellationToken);
+            (int)user.UserType, cancellationToken);
 
         return new LoginResponse
         {
@@ -127,9 +126,8 @@ public class AuthService : IAuthService
 
         await _grantStore.RemoveAsync(refreshToken);
 
-        var roles = await _userService.GetRolesAsync(user.Id, cancellationToken);
         var (newAccessToken, newRefreshToken) = await IssueTokensAsync(user.Id, user.Username,
-            user.SecurityStamp, user.Email, roles, user.TenantId, (int)user.UserType, cancellationToken);
+            user.SecurityStamp, (int)user.UserType, cancellationToken);
 
         return new LoginResponse
         {
@@ -175,8 +173,7 @@ public class AuthService : IAuthService
     /// 签发 AccessToken + RefreshToken（组合操作）
     /// </summary>
     private async Task<(string accessToken, string refreshToken)> IssueTokensAsync(
-        Guid userId, string username, string securityStamp, string? email, IReadOnlyList<string> roles,
-        Guid? tenantId, int userType, CancellationToken cancellationToken)
+        Guid userId, string username, string securityStamp, int userType, CancellationToken cancellationToken)
     {
         var claims = new List<Claim>
         {
@@ -184,14 +181,8 @@ public class AuthService : IAuthService
             new(ClaimTypes.Name, username),
             new("security_stamp", securityStamp),
             new("aud", "api1"),
-            new("tenant_id", tenantId?.ToString() ?? ""),
             new("user_type", userType.ToString())
         };
-
-        if (!string.IsNullOrEmpty(email))
-            claims.Add(new Claim(ClaimTypes.Email, email));
-
-        claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
         var accessToken = await _identityServerTools.IssueJwtAsync(
             lifetime: await _sysParam.GetValueAsync("access_token_lifetime", DefaultAccessTokenLifetime),

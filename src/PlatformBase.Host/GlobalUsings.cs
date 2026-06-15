@@ -24,6 +24,7 @@ global using PlatformBase.Application.Services.JobModule;
 global using PlatformBase.Application.Services.TenantModule;
 global using PlatformBase.Application.Services.OrganizationModule;
 global using PlatformBase.Application.Services.ImportExportModule;
+global using PlatformBase.Application.Services.AuthorizationModule;
 
 // 导入 Host 层子命名空间（Controllers + Services）
 global using PlatformBase.Host.Controllers.AuthModule;
@@ -56,3 +57,4 @@ global using PlatformBase.Host.Services.TenantModule;
 global using PlatformBase.Host.Services.JobModule;
 global using PlatformBase.Host.Services.CacheModule;
 global using PlatformBase.Host.Services.EventModule;
+global using PlatformBase.Host.Services.AuthorizationModule;

@@ -145,3 +145,7 @@ if (permissions.includes('users.delete-btn')) {
            → ASP.NET Core 返回 HTTP 403
            → 响应体为空（由 JwtBearer 处理）
 ```
+
+---
+
+> **前端权限文档**：[frontend/docs/permissions.md](../frontend/docs/permissions.md) — 完整模块级权限码矩阵、v-permission 指令、路由守卫

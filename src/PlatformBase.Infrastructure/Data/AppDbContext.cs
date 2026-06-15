@@ -94,6 +94,9 @@ public class AppDbContext : DbContext
     /// <summary>组织架构表</summary>
     public DbSet<OrganizationUnit> OrganizationUnits { get; set; } = null!;
 
+    /// <summary>用户-组织架构关联表</summary>
+    public DbSet<UserOrganizationUnit> UserOrganizationUnits { get; set; } = null!;
+
     /// <summary>菜单表</summary>
     public DbSet<Menu> Menus { get; set; } = null!;
 
@@ -209,6 +212,9 @@ public class AppDbContext : DbContext
             e.HasIndex(o => o.ParentId);
             e.HasIndex(o => o.Path);
         });
+
+        modelBuilder.Entity<UserOrganizationUnit>(e =>
+            e.HasKey(uo => new { uo.UserId, uo.OrganizationUnitId }));
 
         modelBuilder.Entity<Menu>(e =>
         {
@@ -334,10 +340,10 @@ public class AppDbContext : DbContext
 
     /// <summary>
     /// 多租户全局查询过滤器
-    /// 根据 ICurrentUserContext.AccessibleTenantIds 控制可见范围：
-    /// - 租户用户 → 只能看自己租户的数据
-    /// - 平台管理员（已分配）→ 可看已分配租户 + Guid.Empty（通用数据）
-    /// - 无分配记录 → 什么也看不到
+    /// 根据 ICurrentUserContext.CurrentTenantIds 控制可见范围：
+    /// - 租户用户 → CurrentTenantIds = [TenantId]，只能看自己租户的数据
+    /// - 平台用户 → CurrentTenantIds = SetCurrentTenants 设置值 / [CurrentTenantId] / TenantIds
+    /// - CurrentTenantIds.Count == 0 → 什么也看不到（安全默认）
     /// </summary>
     private void ApplyTenantFilters(ModelBuilder modelBuilder)
     {
@@ -353,14 +359,14 @@ public class AppDbContext : DbContext
 
     private LambdaExpression BuildTenantFilter(Type entityType)
     {
-        // ⚠️ 关键：不在模型构建时捕获 AccessibleTenantIds 的副本，
+        // ⚠️ 关键：不在模型构建时捕获 CurrentTenantIds 的副本，
         // 而是在查询时通过 _currentUserContext 实时求值
         var param = Expression.Parameter(entityType, "e");
 
         Expression<Func<ITenantAware, bool>> filter = e =>
-            _currentUserContext.AccessibleTenantIds.Count == 0
+            _currentUserContext.CurrentTenantIds.Count == 0
                 ? false
-                : e.TenantId == Guid.Empty || _currentUserContext.AccessibleTenantIds.Contains(e.TenantId);
+                : e.TenantId == Guid.Empty || _currentUserContext.CurrentTenantIds.Contains(e.TenantId);
 
         return ConvertFilterExpression(filter, entityType);
     }

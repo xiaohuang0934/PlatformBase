@@ -88,10 +88,10 @@ public class TenantsController : ControllerBase
     [HttpGet("accessible")]
     public async Task<ApiResult<IReadOnlyList<object>>> GetAccessibleTenants(CancellationToken ct)
     {
-        if (!_userContext.IsSuperAdmin)
+        if (_userContext.UserType != UserType.PlatformAdmin)
             return ApiResult<IReadOnlyList<object>>.Ok([]);
 
-        var ids = _userContext.AccessibleTenantIds;
+        var ids = _userContext.TenantIds;
         if (ids.Count == 0)
             return ApiResult<IReadOnlyList<object>>.Ok([]);
 

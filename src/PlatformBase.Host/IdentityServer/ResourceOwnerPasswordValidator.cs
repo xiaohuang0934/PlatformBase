@@ -104,10 +104,7 @@ public class ResourceOwnerPasswordValidator : IResourceOwnerPasswordValidator
             await DeleteFailCountAsync($"login:fail:{normalizedUser}");
             _logger.LogInformation("登录成功：用户 {Username} ({UserId})", user.Username, user.Id);
 
-            // ⑦ 获取用户角色
-            var roles = await _userService.GetRolesAsync(user.Id);
-
-            // ⑧ 构建 Claims 并签发令牌
+            // ⑦ 构建 Claims 并签发令牌
             var claims = new List<Claim>
             {
                 new(JwtClaimTypes.Subject, user.Id.ToString()),
@@ -115,13 +112,7 @@ public class ResourceOwnerPasswordValidator : IResourceOwnerPasswordValidator
                 new("security_stamp", user.SecurityStamp)
             };
 
-            if (!string.IsNullOrEmpty(user.Email))
-                claims.Add(new Claim(JwtClaimTypes.Email, user.Email));
-
-            claims.Add(new Claim("tenant_id", user.TenantId?.ToString() ?? ""));
             claims.Add(new Claim("user_type", ((int)user.UserType).ToString()));
-
-            claims.AddRange(roles.Select(role => new Claim(JwtClaimTypes.Role, role)));
 
             context.Result = new GrantValidationResult(
                 subject: user.Id.ToString(),

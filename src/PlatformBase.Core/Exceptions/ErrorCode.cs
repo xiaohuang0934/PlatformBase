@@ -61,6 +61,41 @@ public static class ErrorCode
     /// <summary>请求过于频繁</summary>
     public const int TooManyRequests = 1009;
 
+    /// <summary>权限拒绝</summary>
+    public const int PermissionDenied = 1010;
+
+    // ========== 租户/部门/角色校验错误码（1011-1020） ==========
+
+    /// <summary>必须指定租户</summary>
+    public const int TenantIdRequired = 1011;
+
+    /// <summary>无权访问指定租户</summary>
+    public const int TenantAccessDenied = 1012;
+
+    /// <summary>部门必选</summary>
+    public const int OrganizationRequired = 1013;
+
+    /// <summary>角色必选</summary>
+    public const int RoleRequired = 1014;
+
+    /// <summary>部门不属于目标租户</summary>
+    public const int OrganizationNotInTenant = 1015;
+
+    /// <summary>角色不属于目标租户</summary>
+    public const int RoleNotInTenant = 1016;
+
+    /// <summary>不能创建平台管理员</summary>
+    public const int CannotCreatePlatformAdmin = 1017;
+
+    /// <summary>只能创建租户用户</summary>
+    public const int CanOnlyCreateTenantUser = 1018;
+
+    /// <summary>父部门不属于当前租户</summary>
+    public const int ParentOrgNotInTenant = 1019;
+
+    /// <summary>无权执行此操作</summary>
+    public const int NoPermissionToOperate = 1020;
+
     // ========== 基础设施错误码（2000 起） ==========
 
     /// <summary>数据库错误</summary>
