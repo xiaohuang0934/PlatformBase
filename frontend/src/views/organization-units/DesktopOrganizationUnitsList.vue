@@ -86,7 +86,7 @@ function toggleOrg(tid: string, org: OrgNode) {
 }
 
 // ───── 共享给递归子组件的 actions ─────
-provide('orgActions', { tenantOrgs, expandedOrgIds, toggleOrg, openCreate, openEdit, handleDelete })
+provide('orgActions', reactive({ tenantOrgs, expandedOrgIds, toggleOrg, openCreate, openEdit, handleDelete }))
 
 // ───── 新增/编辑 ─────
 const dialogVisible = ref(false)
