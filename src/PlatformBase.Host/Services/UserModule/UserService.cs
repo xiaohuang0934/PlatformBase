@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
+using PlatformBase.Application.Services.OrganizationModule;
 using PlatformBase.Core.Entities;
 using PlatformBase.Core.Exceptions;
 using PlatformBase.Core.Extensions;
@@ -262,9 +263,27 @@ public class UserService : IUserService
         var userRoleMap = userRoles.GroupBy(ur => ur.UserId)
             .ToDictionary(g => g.Key, g => g.Select(ur => roleMap.GetValueOrDefault(ur.RoleId, "")).ToList());
 
+        // 批量查询用户-部门关联
+        var userIds = result.Items.Select(u => u.Id).ToList();
+        var userOrgLinks = await _context.Set<UserOrganizationUnit>()
+            .Where(uo => userIds.Contains(uo.UserId))
+            .ToListAsync(ct);
+
+        var orgIds = userOrgLinks.Select(uo => uo.OrganizationUnitId).Distinct().ToList();
+        var orgs = orgIds.Count > 0
+            ? await _uow.Repository<OrganizationUnit>().FindAsync(o => orgIds.Contains(o.Id), ct)
+            : [];
+        var orgMap = orgs.ToDictionary(o => o.Id, o => new OrgUnitNode
+        {
+            Id = o.Id, Name = o.Name, Code = o.Code, ParentId = o.ParentId, SortOrder = o.SortOrder
+        });
+        var userOrgMap = userOrgLinks.GroupBy(uo => uo.UserId)
+            .ToDictionary(g => g.Key, g => g.Select(uo => orgMap.GetValueOrDefault(uo.OrganizationUnitId)).Where(n => n != null).ToList()!);
+
         var dtos = result.Items.Select(u =>
         {
             var roleNames = userRoleMap.GetValueOrDefault(u.Id, []);
+            var orgNodes = userOrgMap.GetValueOrDefault(u.Id, []) as IReadOnlyList<OrgUnitNode>;
             return new UserDto
             {
                 Id = u.Id,
@@ -275,6 +294,7 @@ public class UserService : IUserService
                 IsActive = u.IsActive,
                 UserType = u.UserType,
                 Roles = roleNames,
+                OrganizationUnits = orgNodes,
                 CreatedAt = u.CreatedAt,
                 UpdatedAt = u.UpdatedAt
             };

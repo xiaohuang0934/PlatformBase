@@ -8,6 +8,18 @@ const http = axios.create({
   baseURL: '/api/v1',
   timeout: 15000,
   headers: { 'Content-Type': 'application/json' },
+  paramsSerializer: (params) => {
+    const parts: string[] = []
+    for (const [key, val] of Object.entries(params)) {
+      if (val == null || val === '')
+        continue
+      if (Array.isArray(val))
+        val.forEach(v => parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`))
+      else
+        parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(val)}`)
+    }
+    return parts.join('&')
+  },
 })
 
 /** 请求拦截：自动刷新即将过期的 token，并附加 Bearer 头 */
