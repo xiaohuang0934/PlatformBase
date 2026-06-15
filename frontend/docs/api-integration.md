@@ -33,7 +33,13 @@ import http from './index'
  * 分页查询
  * @param params keyword + 后端 DTO 字段（camelCase）
  */
-export function getUserList(params?: { keyword?: string, isActive?: boolean, pageIndex?: number, pageSize?: number }): Promise<ApiResult<PagedResult<UserDto>>> {
+export function getUserList(params?: {
+  keyword?: string
+  isActive?: boolean
+  pageIndex?: number
+  pageSize?: number
+  tenantIds?: string[]       // v1.8: 平台用户多租户查询
+}): Promise<ApiResult<PagedResult<UserDto>>> {
   return http.get('/users', { params }).then(res => res.data)
 }
 ```
@@ -68,6 +74,50 @@ export function getUserList(params?: { keyword?: string, isActive?: boolean, pag
 import { downloadFile } from '@/utils/download'
 downloadFile('/api/v1/files/{id}/download', 'file.pdf')
 ```
+
+## v1.8 变更摘要
+
+### 新增 API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `GET /users/{id}/organizations` | GET | 查看用户所属部门 |
+| `PUT /users/{id}/organizations` | PUT | 分配用户部门（全量替换） |
+| `POST /users/{id}/organizations/{orgId}` | POST | 添加用户到部门 |
+| `DELETE /users/{id}/organizations/{orgId}` | DELETE | 将用户移出部门 |
+| `GET /organization-units/{id}/users` | GET | 查询部门下的用户 |
+| `GET /organization-units/{id}/users/with-children` | GET | 分页查询部门及子级用户 |
+| `GET /tenants/accessible` | GET | 当前平台用户可访问租户列表 |
+
+### DTO 字段变更
+
+| DTO | 新增字段 | 类型 | 必填 |
+|-----|---------|------|:--:|
+| `CreateUserDto` | `tenantId` | `Guid?` | 平台管理员必填 |
+| `CreateUserDto` | `userType` | `int?` | 否 |
+| `CreateUserDto` | `roleIds` | `Guid[]` | **是**（变更） |
+| `CreateUserDto` | `organizationUnitIds` | `Guid[]` | **是** |
+| `UpdateUserDto` | `userType` | `int?` | 否 |
+| `UpdateUserDto` | `organizationUnitIds` | `Guid[]` | 否 |
+| `UserDto` | `userType` | `int` | — |
+| `UserDto` | `organizationUnits` | `OrgUnitNode[]` | — |
+| `CreateRoleDto` | `tenantId` | `Guid?` | 否（null=全局角色） |
+
+### 查询参数变更
+
+| 端点 | 新参数 | 说明 |
+|------|-------|------|
+| `GET /users` | `tenantIds` (query) | 平台用户指定查询的租户列表 |
+| `GET /roles` | `tenantIds` (query) | 平台用户指定查询的租户列表 |
+| `GET /import-export/users` | `tenantId` (query) | 按租户过滤导出 |
+| `POST /import-export/users` | `tenantId` (query) | 指定导入目标租户 |
+
+### 关键差异
+
+- `profile` 响应不再包含 `email` / `roles` 字段（JWT 简化）
+- `login` 响应的 JWT 不再内嵌 `roles` / `email` / `tenant_id` Claim
+- 用户详情 **必须** 通过 `GET /users/{id}` 获取完整信息
+- 所有操作需先获取 `tenantIds` 列表，再提供给查询类端点
 
 ---
 

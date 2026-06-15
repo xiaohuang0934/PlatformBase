@@ -21,12 +21,16 @@
 ├──────────────────────────────────────┤
 │  Components (通用组件)               │
 │  Breadcrumb / TagsView / BackToTop   │
+│  TenantSelector (v1.8新增)           │
+│  OrgSelector / OrgTree (v1.8新增)    │
 ├──────────────────────────────────────┤
 │  Composables (业务逻辑)              │
 │  useDevice / useTableSelection       │
+│  useTenantSwitch (v1.8新增)          │
 ├──────────────────────────────────────┤
 │  Stores (Pinia 状态)                 │
 │  auth / permission / theme / tags    │
+│  org (v1.8新增: 部门树+用户查询)     │
 ├──────────────────────────────────────┤
 │  API (HTTP 请求)                     │
 │  axios + 拦截器 + 自动 Token 刷新    │
@@ -61,17 +65,31 @@
 
 路由组件按 `window.innerWidth` 自动加载 Desktop/Mobile 版本。
 
-## 状态管理
+## 状态管理 (v1.8)
 
-| Store | 职责 | 持久化 |
-|------|------|:--:|
-| `auth` | token + 用户信息 + 权限编码列表 | localStorage (token) |
-| `permission` | 菜单树 + 路由注册状态 | — |
-| `app` | 侧边栏折叠 + 设备类型 | — |
-| `theme` | 暗/亮模式 | localStorage |
-| `tagsView` | 多页签列表 + 缓存 | — |
-| `settings` | 布局设置（固定顶栏等） | — |
-| `errorLog` | 前端错误日志 | — |
+| Store | 职责 | 持久化 | v1.8 变更 |
+|------|------|:--:|---------|
+| `auth` | token + userId/username/userType/isSuperAdmin + permissions | localStorage (token) | 新增 userType、isSuperAdmin；roles 字段移除 |
+| `permission` | 菜单树 + 路由注册状态 | — | 支持按租户视角刷新菜单 |
+| `app` | 侧边栏折叠 + 设备类型 + 当前租户选择 | — | 新增 currentTenantId |
+| `theme` | 暗/亮模式 | localStorage | |
+| `tagsView` | 多页签列表 + 缓存 | — | |
+| `settings` | 布局设置（固定顶栏等） | — | |
+| `errorLog` | 前端错误日志 | — | |
+
+### auth Store 类型定义
+
+```ts
+interface AuthState {
+  token: string
+  userId: string | null
+  username: string | null
+  userType: number | null     // 1=PlatformAdmin, 2=TenantAdmin, 3=TenantUser
+  isSuperAdmin: boolean
+  permissions: string[]       // GET /auth/permissions 返回的权限编码列表
+  tenantIds: string[]         // GET /tenants/accessible 返回的租户列表（平台用户）
+}
+```
 
 ## 主题系统
 
@@ -86,11 +104,11 @@ CSS 自定义属性双模驱动：
 
 ## 权限控制 (三道防线)
 
-| 防线 | 位置 | 机制 |
-|------|------|------|
-| 第 1 道 | `router/permission.ts` | `beforeEach` 守卫：未登录跳转 → 动态路由注册 |
-| 第 2 道 | `directives/permission.ts` | `v-permission` 指令：无权限的 DOM 元素直接移除 |
-| 第 3 道 | 后端 `[Permission]` | API 层终极校验 |
+| 防线 | 位置 | 机制 | v1.8 变更 |
+|------|------|------|---------|
+| 第 1 道 | `router/permission.ts` | `beforeEach` 守卫：未登录跳转 → 动态路由注册 | 超级管理员路由不裁剪 |
+| 第 2 道 | `directives/permission.ts` | `v-permission` 指令：无权限的 DOM 元素直接移除 | 支持 `v-user-type` 指令 |
+| 第 3 道 | 后端 `[Permission]` | API 层终极校验 | 后端自动放行 SuperAdmin |
 
 ## Token 刷新机制
 
@@ -108,6 +126,20 @@ CSS 自定义属性双模驱动：
 ```
 
 并发请求保护：同时多个请求发现 token 过期时，仅第一个发刷新请求，其余排队等待新 token。
+
+## v1.8 新增组件规格
+
+### TenantSelector（租户选择器）
+
+- **权限限制**：仅 `userType === 1`（PlatformAdmin）可见
+- **数据源**：`GET /tenants/accessible`
+- **行为**：切换时重置当前页状态 + 重新加载菜单树 + 重新加载列表数据
+
+### OrgSelector / OrgTree（部门选择器）
+
+- **使用场景**：用户创建/编辑表单中的部门多选
+- **数据源**：`GET /organization-units` 树形数据
+- **交互**：支持勾选多个部门节点（平铺式或树形）
 
 ---
 
