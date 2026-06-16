@@ -1,7 +1,10 @@
 <script setup lang="ts">
+import type { Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { resolveIcon } from '@/layouts/DesktopLayout/Sidebar/icon'
 import { useAuthStore } from '@/stores/auth'
 import { usePermissionStore } from '@/stores/permission'
+import DrawerMenuItem from './DrawerMenuItem.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -11,7 +14,7 @@ const permission = usePermissionStore()
 const drawerVisible = ref(false)
 
 const tabItems = [
-  { name: '工作台', path: '/dashboard', icon: 'home-o' },
+  { name: '工作台', path: '/m/dashboard', icon: 'home-o' },
   { name: '应用', path: '/m/apps', icon: 'apps-o' },
   { name: '消息', path: '/m/notifications', icon: 'chat-o' },
   { name: '我的', path: '/m/profile', icon: 'user-o' },
@@ -27,7 +30,7 @@ function onTabChange(index: number) {
     router.push(item.path)
 }
 
-/** 抽屉导航跳转 */
+/** 抽屉导航跳转 — 接收已转换的移动端路径 */
 function goTo(path: string) {
   drawerVisible.value = false
   router.push(path)
@@ -45,13 +48,13 @@ function handleLogout() {
 function goBack() {
   if (window.history.length > 1)
     router.back()
-  else router.push('/dashboard')
+  else router.push('/m/dashboard')
 }
 
 /** 当前在模块内部（非 tab 首页），显示返回按钮 */
 const showBack = computed(() => {
   const tabPaths = tabItems.map(t => t.path)
-  return !tabPaths.includes(route.path) && route.path !== '/'
+  return !tabPaths.includes(route.path) && route.path !== '/' && route.path !== '/login'
 })
 
 const navItems = computed(() => {
@@ -63,6 +66,11 @@ const navItems = computed(() => {
       children: m.children?.filter(c => c.path) ?? [],
     }))
 })
+
+/** 解析菜单图标 */
+function resolveMenuIcon(name: string | null): Component | null {
+  return resolveIcon(name)
+}
 </script>
 
 <template>
@@ -105,17 +113,21 @@ const navItems = computed(() => {
         <div class="mobile-drawer__list">
           <template v-for="menu in navItems" :key="menu.name">
             <div class="drawer-group">
-              <div class="drawer-group__label">
-                {{ menu.name }}
+              <div class="drawer-group__header">
+                <el-icon v-if="resolveMenuIcon(menu.icon)" class="drawer-group__icon">
+                  <component :is="resolveMenuIcon(menu.icon)" />
+                </el-icon>
+                <span class="drawer-group__label">{{ menu.name }}</span>
               </div>
-              <div
+              <div class="drawer-group__divider" />
+              <DrawerMenuItem
                 v-for="child in menu.children"
                 :key="child.id"
-                class="drawer-item"
-                @click="goTo(child.path ?? '/')"
-              >
-                {{ child.name }}
-              </div>
+                :icon="child.icon"
+                :name="child.name"
+                :path="child.path ?? '/'"
+                @click="goTo"
+              />
             </div>
           </template>
         </div>
@@ -219,24 +231,29 @@ const navItems = computed(() => {
 }
 
 .drawer-group {
-  margin-bottom: $spacing-sm;
-  &__label {
+  margin-bottom: $spacing-base;
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
     padding: $spacing-sm $spacing-md;
+  }
+  &__icon {
+    width: 16px;
+    height: 16px;
+    color: $color-text-dim;
+  }
+  &__label {
     font-size: $font-size-xs;
     font-weight: 600;
     color: $color-text-dim;
     text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
-}
-
-.drawer-item {
-  padding: 12px $spacing-md;
-  font-size: $font-size-base;
-  color: $color-text-regular;
-  cursor: pointer;
-  &:active {
-    background: $color-bg-hover;
-    color: $color-primary;
+  &__divider {
+    height: 1px;
+    margin: 0 $spacing-md;
+    background: $header-border;
   }
 }
 
@@ -249,5 +266,10 @@ const navItems = computed(() => {
   border: 1px solid $color-border;
   border-radius: $radius-md;
   cursor: pointer;
+  transition: all $transition-fast;
+
+  &:active {
+    background: rgba(229, 72, 77, 0.08);
+  }
 }
 </style>

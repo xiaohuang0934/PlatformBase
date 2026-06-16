@@ -4,9 +4,9 @@ import { Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, provide, reactive, ref } from 'vue'
 import * as orgApi from '@/api/organization'
-import OrgTreeNode from './OrgTreeNode.vue'
 import TenantSelector from '@/components/TenantSelector.vue'
 import { useAuthStore } from '@/stores/auth'
+import OrgTreeNode from './OrgTreeNode.vue'
 
 interface TenantNode {
   tenantId: string
@@ -34,7 +34,8 @@ const tenantOrgs = ref<Record<string, OrgNode[]>>({})
 const keyword = ref('')
 
 const filteredTenants = computed(() => {
-  if (!keyword.value) return tenantList.value
+  if (!keyword.value)
+    return tenantList.value
   const kw = keyword.value.toLowerCase()
   return tenantList.value.filter(t =>
     t.tenantName.toLowerCase().includes(kw) || t.tenantCode.toLowerCase().includes(kw),
@@ -76,7 +77,7 @@ function toggleOrg(tid: string, org: OrgNode) {
     expandedOrgIds.value.add(org.id)
     const key = `${tid}_${org.id}`
     if (!tenantOrgs.value[key]) {
-      orgApi.getOrgNodes({ tenantId: tid, parentId: org.id }).then(res => {
+      orgApi.getOrgNodes({ tenantId: tid, parentId: org.id }).then((res) => {
         tenantOrgs.value[key] = (res.data || []) as OrgNode[]
         tenantOrgs.value = { ...tenantOrgs.value }
       }).catch(() => {})
@@ -121,7 +122,8 @@ function getTenantOrgOptions(tid: string) {
 }
 
 function addChildOptions(tid: string, org: OrgNode, depth: number, result: { label: string, value: string }[]) {
-  if (!expandedOrgIds.value.has(org.id)) return
+  if (!expandedOrgIds.value.has(org.id))
+    return
   const key = `${tid}_${org.id}`
   const children = tenantOrgs.value[key] || []
   for (const child of children) {
@@ -148,7 +150,8 @@ function openEdit(tid: string, org: OrgNode) {
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
+  if (!valid)
+    return
   submitting.value = true
   try {
     if (isEditing.value) {
@@ -173,7 +176,9 @@ async function handleSubmit() {
 
 function handleDelete(tid: string, org: OrgNode) {
   ElMessageBox.confirm(`确定删除部门 "${org.name}" 吗？`, '确认删除', {
-    confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning',
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning',
   }).then(() => {
     orgApi.deleteOrgUnit(org.id).then(() => {
       ElMessage.success('已删除')
@@ -184,10 +189,11 @@ function handleDelete(tid: string, org: OrgNode) {
 
 function refreshTenantOrgs(tid: string | undefined) {
   if (!tid) { loadTenants(); return }
-  orgApi.getOrgNodes({ tenantId: tid }).then(res => {
+  orgApi.getOrgNodes({ tenantId: tid }).then((res) => {
     tenantOrgs.value[tid] = (res.data || []) as OrgNode[]
     for (const key of Object.keys(tenantOrgs.value)) {
-      if (key.startsWith(`${tid}_`)) delete tenantOrgs.value[key]
+      if (key.startsWith(`${tid}_`))
+        delete tenantOrgs.value[key]
     }
     tenantOrgs.value = { ...tenantOrgs.value }
   }).catch(() => {})

@@ -7,6 +7,7 @@ using PlatformBase.Core.Repositories;
 using PlatformBase.Core.Services;
 using PlatformBase.Host.Authorization;
 using PlatformBase.Host.Filters;
+using PlatformBase.Application.Services.MenuModule;
 
 namespace PlatformBase.Host.Controllers.UserModule;
 
@@ -23,17 +24,20 @@ public class UserController : ControllerBase
     private readonly IDataScopeAuthorizationService _authService;
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserContext _currentUser;
+    private readonly IMenuService _menuService;
 
     public UserController(
         IUserService service,
         IDataScopeAuthorizationService authService,
         IUnitOfWork uow,
-        ICurrentUserContext currentUser)
+        ICurrentUserContext currentUser,
+        IMenuService menuService)
     {
         _service = service;
         _authService = authService;
         _uow = uow;
         _currentUser = currentUser;
+        _menuService = menuService;
     }
 
     /// <summary>分页查询用户列表</summary>
@@ -124,6 +128,11 @@ public class UserController : ControllerBase
             if (dto.OrganizationUnitIds?.Count > 0)
             {
                 await _service.SetOrganizationsAsync(created.Id, dto.OrganizationUnitIds, ct);
+            }
+
+            if (dto.MenuIds?.Count > 0)
+            {
+                await _menuService.AssignMenusToUserAsync(created.Id, dto.MenuIds, ct);
             }
 
             await _uow.CommitTransactionAsync(ct);
@@ -338,6 +347,32 @@ public class UserController : ControllerBase
 
         await _service.RemoveFromOrganizationAsync(id, orgId, ct);
         return ApiResult.Ok("已从部门移除");
+    }
+
+    // ═══════════════════ 用户-菜单关联管理 ═══════════════════
+
+    /// <summary>获取用户已分配的菜单 ID 列表</summary>
+    [HttpGet("{id:guid}/menus")]
+    [Permission("users.list")]
+    public async Task<ApiResult<IReadOnlyList<Guid>>> GetMenus(Guid id, CancellationToken ct)
+    {
+        var menuIds = await _menuService.GetUserMenuIdsAsync(id, ct);
+        return ApiResult<IReadOnlyList<Guid>>.Ok(menuIds);
+    }
+
+    /// <summary>给用户批量分配菜单（全量替换）</summary>
+    [HttpPut("{id:guid}/menus")]
+    [Permission("users.edit")]
+    [OperationLog("assign-menus", Resource = "User")]
+    public async Task<ApiResult> AssignMenus(
+        Guid id, [FromBody] IReadOnlyList<Guid> menuIds, CancellationToken ct)
+    {
+        var user = await _service.GetByIdAsync(id, ct);
+        if (user == null)
+            return ApiResult.Fail(ErrorCode.UserNotFound, "用户不存在");
+
+        await _menuService.AssignMenusToUserAsync(id, menuIds, ct);
+        return ApiResult.Ok("菜单分配成功");
     }
 
     /// <summary>将部门实体列表转换为树节点列表</summary>

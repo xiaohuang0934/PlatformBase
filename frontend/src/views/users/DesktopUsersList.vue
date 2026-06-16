@@ -2,16 +2,17 @@
 import type { FormInstance, FormRules } from 'element-plus'
 import type { RoleDto } from '@/types/auth'
 import type { CreateUserDto, OrgUnitNode, UserDto } from '@/types/user'
-import { UserType } from '@/types/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { getRoleList } from '@/api/roles'
 import * as userApi from '@/api/users'
+import * as menuApi from '@/api/menus'
 import OrgSelector from '@/components/OrgSelector.vue'
 import TableToolbar from '@/components/TableToolbar.vue'
 import TenantSelector from '@/components/TenantSelector.vue'
 import { useTableSelection } from '@/composables/useTableSelection'
 import { useAuthStore } from '@/stores/auth'
+import { UserType } from '@/types/user'
 import { parseTime } from '@/utils/index'
 
 const loading = ref(false)
@@ -43,9 +44,20 @@ const userTypeTag: Record<number, 'danger' | 'warning' | 'info'> = {
 
 const allRoles = ref<RoleDto[]>([])
 
+const menuTree = ref<any[]>([])
+const menuTreeRef = ref<any>(null)
+
 async function loadRoles() {
   const res = await getRoleList({ pageSize: 200 })
   allRoles.value = res.data.items
+}
+
+async function loadMenuTree() {
+  try {
+    const res = await menuApi.getMenuTree()
+    menuTree.value = res.data || []
+  }
+  catch { /* ignore */ }
 }
 
 async function fetchList() {
@@ -73,6 +85,10 @@ function onReset() { query.keyword = ''; query.isActive = undefined; query.tenan
 function onTenantChange(tid: string | null) {
   query.tenantIds = tid ? [tid] : []
   onSearch()
+}
+
+function handleMenuCheck() {
+  form.menuIds = menuTreeRef.value?.getCheckedKeys() || []
 }
 
 // 批量操作
@@ -107,9 +123,15 @@ const formRef = ref<FormInstance>()
 const submitting = ref(false)
 
 const form = reactive<CreateUserDto & { id?: string }>({
-  username: '', password: '', email: '', phoneNumber: '',
-  tenantId: undefined, userType: undefined,
-  roleIds: [], organizationUnitIds: [],
+  username: '',
+  password: '',
+  email: '',
+  phoneNumber: '',
+  tenantId: undefined,
+  userType: undefined,
+  roleIds: [],
+  organizationUnitIds: [],
+  menuIds: [],
 })
 
 const defaultFormRules: FormRules = {
@@ -126,9 +148,16 @@ function openCreate() {
   isEditing.value = false
   dialogTitle.value = '新增用户'
   Object.assign(form, {
-    id: undefined, username: '', password: '', email: '', phoneNumber: '',
-    tenantId: undefined, userType: undefined,
-    roleIds: [], organizationUnitIds: [],
+    id: undefined,
+    username: '',
+    password: '',
+    email: '',
+    phoneNumber: '',
+    tenantId: undefined,
+    userType: undefined,
+    roleIds: [],
+    organizationUnitIds: [],
+    menuIds: [],
   })
   formRules.password = { required: true, message: '请输入密码', trigger: 'blur' }
   formRules.roleIds = { required: true, message: '请选择角色', trigger: 'change', type: 'array', min: 1 }
@@ -143,8 +172,13 @@ function openEdit(row: UserDto) {
   formRules.roleIds = undefined as any
   formRules.organizationUnitIds = undefined as any
   Object.assign(form, {
-    id: row.id, username: row.username, password: '', email: row.email || '', phoneNumber: row.phoneNumber || '',
-    tenantId: undefined, userType: row.userType,
+    id: row.id,
+    username: row.username,
+    password: '',
+    email: row.email || '',
+    phoneNumber: row.phoneNumber || '',
+    tenantId: undefined,
+    userType: row.userType,
     roleIds: row.roles || [],
     organizationUnitIds: row.organizationUnits?.map((o: OrgUnitNode) => o.id) || [],
   })
@@ -153,7 +187,8 @@ function openEdit(row: UserDto) {
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
+  if (!valid)
+    return
   submitting.value = true
   try {
     if (isEditing.value && form.id) {
@@ -176,6 +211,7 @@ async function handleSubmit() {
         userType: form.userType,
         roleIds: form.roleIds,
         organizationUnitIds: form.organizationUnitIds,
+        menuIds: form.menuIds?.length ? form.menuIds : undefined,
       })
       ElMessage.success('创建成功')
     }
@@ -204,16 +240,68 @@ const pwdTargetUser = ref<UserDto | null>(null)
 const newPassword = ref('')
 function openResetPwd(row: UserDto) { pwdTargetUser.value = row; newPassword.value = ''; pwdDialogVisible.value = true }
 async function handleResetPwd() {
-  if (!newPassword.value || !pwdTargetUser.value) return
+  if (!newPassword.value || !pwdTargetUser.value)
+    return
   await userApi.resetPassword(pwdTargetUser.value.id, newPassword.value)
   ElMessage.success('密码已重置'); pwdDialogVisible.value = false
+}
+
+// 分配菜单
+const menuDialogVisible = ref(false)
+const menuTargetUser = ref<UserDto | null>(null)
+const selectedMenuIds = ref<string[]>([])
+const assignMenuTreeRef = ref<any>(null)
+
+function openAssignMenusForSelected() {
+  if (sel.selectedCount.value === 0) {
+    ElMessage.warning('请先选择用户')
+    return
+  }
+  if (sel.selectedCount.value > 1) {
+    ElMessage.warning('每次只能为一个用户分配菜单')
+    return
+  }
+  const user = sel.selectedRows.value[0]
+  openAssignMenus(user)
+}
+
+async function openAssignMenus(row: UserDto) {
+  menuTargetUser.value = row
+  selectedMenuIds.value = []
+  try {
+    const res = await menuApi.getUserMenus(row.id)
+    selectedMenuIds.value = res.data || []
+  }
+  catch { /* ignore */ }
+  menuDialogVisible.value = true
+  // 等待 DOM 更新后设置选中状态
+  setTimeout(() => {
+    if (assignMenuTreeRef.value && selectedMenuIds.value.length > 0) {
+      assignMenuTreeRef.value.setCheckedKeys(selectedMenuIds.value)
+    }
+  }, 100)
+}
+
+async function handleAssignMenus() {
+  if (!menuTargetUser.value)
+    return
+  const checkedKeys = assignMenuTreeRef.value?.getCheckedKeys() || []
+  const halfCheckedKeys = assignMenuTreeRef.value?.getHalfCheckedKeys() || []
+  // 只保存叶子节点（页面和按钮），不保存目录节点
+  const menuIds = checkedKeys.filter((id: string) => !halfCheckedKeys.includes(id))
+  try {
+    await menuApi.assignMenus(menuTargetUser.value.id, menuIds)
+    ElMessage.success('菜单分配成功')
+    menuDialogVisible.value = false
+  }
+  catch { ElMessage.error('分配失败，请重试') }
 }
 
 function onPageChange(p: number) { query.pageIndex = p; fetchList() }
 function formatRoles(roles: string[]) { return roles?.join(' / ') || '-' }
 function formatOrgs(orgs: OrgUnitNode[]) { return orgs?.map(o => o.name).join(' / ') || '-' }
 
-onMounted(() => { loadRoles(); fetchList() })
+onMounted(() => { loadRoles(); loadMenuTree(); fetchList() })
 </script>
 
 <template>
@@ -249,6 +337,9 @@ onMounted(() => { loadRoles(); fetchList() })
       <template #actions>
         <el-button type="primary" @click="openCreate">
           新增用户
+        </el-button>
+        <el-button type="success" @click="openAssignMenusForSelected">
+          分配菜单
         </el-button>
         <el-button :disabled="!sel.hasSelection.value" @click="batchToggle(true)">
           批量启用
@@ -303,19 +394,13 @@ onMounted(() => { loadRoles(); fetchList() })
           {{ parseTime(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column label="操作" width="160" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link size="small" @click="openEdit(row)">
             编辑
           </el-button>
           <el-button type="warning" link size="small" @click="openResetPwd(row)">
             重置密码
-          </el-button>
-          <el-button :type="row.isActive ? 'warning' : 'success'" link size="small" @click="handleToggle(row)">
-            {{ row.isActive ? '禁用' : '启用' }}
-          </el-button>
-          <el-button type="danger" link size="small" @click="handleDelete(row)">
-            删除
           </el-button>
         </template>
       </el-table-column>
@@ -356,7 +441,7 @@ onMounted(() => { loadRoles(); fetchList() })
         </el-form-item>
         <el-form-item label="部门" prop="organizationUnitIds">
           <div style="max-height:200px;overflow-y:auto;border:1px solid var(--el-border-color);border-radius:4px;padding:8px">
-            <OrgSelector v-model="form.organizationUnitIds" />
+            <OrgSelector v-model="form.organizationUnitIds" :tenant-id="form.tenantId" />
           </div>
         </el-form-item>
       </el-form>
@@ -385,6 +470,28 @@ onMounted(() => { loadRoles(); fetchList() })
           取消
         </el-button>
         <el-button type="warning" @click="handleResetPwd">
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 分配菜单弹窗 -->
+    <el-dialog v-model="menuDialogVisible" :title="`分配菜单 - ${menuTargetUser?.username}`" width="500px">
+      <div style="max-height:400px;overflow-y:auto;border:1px solid var(--el-border-color);border-radius:4px;padding:8px">
+        <el-tree
+          ref="assignMenuTreeRef"
+          :data="menuTree"
+          show-checkbox
+          node-key="id"
+          :props="{ label: 'name', children: 'children' }"
+          :check-strictly="false"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="menuDialogVisible = false">
+          取消
+        </el-button>
+        <el-button type="primary" @click="handleAssignMenus">
           确定
         </el-button>
       </template>

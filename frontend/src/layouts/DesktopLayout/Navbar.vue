@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { IconMoon, IconSun } from '@tabler/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { ref } from 'vue'
 import Breadcrumb from '@/components/Breadcrumb.vue'
@@ -43,7 +44,8 @@ async function handleLogout() {
 
     <div class="navbar__right">
       <button class="navbar__icon-btn" @click="theme.toggle()">
-        {{ theme.mode === 'dark' ? '☀️' : '🌙' }}
+        <IconSun v-if="theme.mode === 'dark'" class="navbar__icon-svg" />
+        <IconMoon v-else class="navbar__icon-svg" />
       </button>
 
       <div class="user-menu" tabindex="0">
@@ -110,13 +112,18 @@ async function handleLogout() {
     border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: $radius-base;
     cursor: pointer;
-    font-size: 16px;
     transition: all $transition-fast;
 
     &:hover {
       background: rgba(255, 255, 255, 0.06);
       border-color: rgba(255, 255, 255, 0.1);
     }
+  }
+
+  &__icon-svg {
+    width: 18px;
+    height: 18px;
+    color: $color-text-regular;
   }
 }
 

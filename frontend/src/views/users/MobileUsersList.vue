@@ -5,42 +5,68 @@ import { onActivated, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import * as userApi from '@/api/users'
 import { parseTime } from '@/utils/index'
+import MobileFilterBar, { type FilterItemConfig } from '@/components/MobileFilterBar.vue'
 
 const router = useRouter()
 const loading = ref(false)
+const refreshing = ref(false)
 const list = ref<UserDto[]>([])
-const query = reactive({ keyword: '', isActive: undefined as boolean | undefined, pageIndex: 1, pageSize: 10 })
-const activeTab = ref(0)
+const keyword = ref('')
 const finished = ref(false)
 
-function getIsActive(tab: number): boolean | undefined {
-  if (tab === 1) return true
-  if (tab === 2) return false
-  return undefined
-}
+/** 筛选条件值 */
+const filterValues = reactive<Record<string, any>>({
+  isActive: undefined,
+})
 
+/** 平铺展示的筛选项 */
+const filterItems = ref<FilterItemConfig[]>([
+  {
+    key: 'isActive',
+    title: '状态',
+    type: 'select',
+    options: [
+      { label: '启用', value: true },
+      { label: '禁用', value: false },
+    ],
+  },
+])
+
+/** 分页 */
+const pageIndex = ref(1)
+const pageSize = 10
+
+/** 获取 List */
 async function fetchList() {
   loading.value = true
   try {
-    const res = await userApi.getUserList({ keyword: query.keyword || undefined, isActive: query.isActive, pageIndex: query.pageIndex, pageSize: query.pageSize })
+    const res = await userApi.getUserList({
+      keyword: keyword.value || undefined,
+      isActive: filterValues.isActive,
+      pageIndex: pageIndex.value,
+      pageSize,
+    })
     const items = res.data.items
-    if (query.pageIndex === 1) list.value = items
+    if (pageIndex.value === 1) list.value = items
     else list.value.push(...items)
-    finished.value = items.length < query.pageSize
+    finished.value = items.length < pageSize
   }
   catch { ElMessage.error('加载失败') }
   finally { loading.value = false }
 }
 
-function onSearch() { query.pageIndex = 1; fetchList() }
-function onFilterChange(tab: number) {
-  activeTab.value = tab
-  query.isActive = getIsActive(tab)
-  query.pageIndex = 1
-  fetchList()
+function onSearch() { pageIndex.value = 1; fetchList() }
+function onFilterChange() { pageIndex.value = 1; fetchList() }
+function onLoad() { pageIndex.value++; fetchList() }
+async function onRefresh() {
+  refreshing.value = true
+  pageIndex.value = 1
+  list.value = []
+  finished.value = false
+  await fetchList()
+  refreshing.value = false
 }
-function onLoad() { query.pageIndex++; fetchList() }
-function goDetail(id: string) { router.push(`/m/users/${id}/edit`) }
+function goEdit(id: string) { router.push(`/m/users/${id}/edit`) }
 
 onMounted(fetchList)
 onActivated(() => { if (list.value.length > 0) fetchList() })
@@ -48,19 +74,16 @@ onActivated(() => { if (list.value.length > 0) fetchList() })
 
 <template>
   <div class="m-page">
-    <van-sticky>
-      <van-search v-model="query.keyword" placeholder="搜索用户名/邮箱" shape="round" @search="onSearch" @clear="onSearch" />
-      <van-tabs v-model="activeTab" :style="{ '--van-tab-font-size': '13px' }" @change="onFilterChange">
-        <van-tab title="全部" :name="0" />
-        <van-tab title="启用" :name="1" />
-        <van-tab title="禁用" :name="2" />
-      </van-tabs>
-    </van-sticky>
+    <MobileFilterBar
+      v-model="filterValues"
+      v-model:keyword="keyword"
+      :items="filterItems"
+      @search="onSearch"
+      @filter-change="onFilterChange"
+    />
 
     <div class="m-toolbar">
-      <van-button type="primary" block round to="/m/users/create">
-        添加
-      </van-button>
+      <van-button type="primary" block round to="/m/users/create">添加</van-button>
     </div>
 
     <div v-if="list.length === 0 && !loading" class="m-empty">
@@ -68,44 +91,40 @@ onActivated(() => { if (list.value.length > 0) fetchList() })
       <span class="m-empty__text">暂无数据</span>
     </div>
 
-    <van-list v-model:loading="loading" :finished="finished" finished-text="没有更多了" @load="onLoad">
-      <div class="m-card-list">
-        <div v-for="item in list" :key="item.id" class="m-card-list__item" @click="goDetail(item.id)">
-          <div class="card-header">
-            <span class="card-header__title">{{ item.username }} <van-icon name="arrow" size="14" color="var(--color-text-dim)" /></span>
-            <van-tag :type="item.isActive ? 'success' : 'danger'" size="medium">
-              {{ item.isActive ? '启用' : '禁用' }}
-            </van-tag>
-          </div>
-          <div class="card-row">
-            <span class="card-row__label">邮箱</span><span>{{ item.email || '-' }}</span>
-          </div>
-          <div class="card-row">
-            <span class="card-row__label">角色</span><span>{{ (item.roles || []).join(' / ') || '-' }}</span>
-          </div>
-          <div class="card-row">
-            <span class="card-row__label">创建</span><span>{{ parseTime(item.createdAt) }}</span>
+    <van-pull-refresh v-model="refreshing" @refresh="onRefresh">
+      <van-list v-model:loading="loading" :finished="finished" finished-text="没有更多了" @load="onLoad">
+        <div class="m-card-list">
+          <div v-for="item in list" :key="item.id" class="m-card-list__item" @click="goEdit(item.id)">
+            <div class="card-header">
+              <span class="card-header__title">{{ item.username }} <van-icon name="arrow" size="14" color="var(--color-text-dim)" /></span>
+              <van-tag :type="item.isActive ? 'success' : 'danger'" size="medium">
+                {{ item.isActive ? '启用' : '禁用' }}
+              </van-tag>
+            </div>
+            <div class="card-row">
+              <span class="card-row__label">邮箱</span><span>{{ item.email || '-' }}</span>
+            </div>
+            <div class="card-row">
+              <span class="card-row__label">角色</span><span>{{ (item.roles || []).join(' / ') || '-' }}</span>
+            </div>
+            <div class="card-row">
+              <span class="card-row__label">创建</span><span>{{ parseTime(item.createdAt) }}</span>
+            </div>
           </div>
         </div>
-      </div>
-    </van-list>
+      </van-list>
+    </van-pull-refresh>
   </div>
 </template>
 
 <style scoped lang="scss">
-.m-toolbar {
-  padding: 8px 12px;
-}
+.m-toolbar { padding: 0 $spacing-base $spacing-sm; }
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 6px;
-  &__title {
-    font-size: $font-size-md;
-    font-weight: 600;
-    color: $color-text-primary;
-  }
+  &__title { font-size: $font-size-md; font-weight: 600; color: $color-text-primary; }
 }
 .card-row {
   display: flex;
@@ -113,11 +132,6 @@ onActivated(() => { if (list.value.length > 0) fetchList() })
   font-size: $font-size-sm;
   color: $color-text-regular;
   padding: 2px 0;
-  &__label {
-    color: $color-text-dim;
-    min-width: 40px;
-  }
+  &__label { color: $color-text-dim; min-width: 40px; }
 }
 </style>
-
-.card-footer { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--color-border); } .card-footer__link { font-size: 12px; color: var(--color-text-dim); }

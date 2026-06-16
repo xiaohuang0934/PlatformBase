@@ -43,8 +43,14 @@ export function setupPermissionGuard(router: Router) {
         if (!permission.menuLoaded) {
           await permission.fetchMenus()
         }
-        const dynamicRoutes = generateDynamicRoutes(permission.menuTree)
-        for (const route of dynamicRoutes) {
+        // 注册桌面端路由
+        const desktopRoutes = generateDynamicRoutes(permission.menuTree, false)
+        for (const route of desktopRoutes) {
+          router.addRoute(route)
+        }
+        // 注册移动端路由
+        const mobileRoutes = generateDynamicRoutes(permission.menuTree, true)
+        for (const route of mobileRoutes) {
           router.addRoute(route)
         }
         // catch-all 必须在所有动态路由之后注册

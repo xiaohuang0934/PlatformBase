@@ -205,8 +205,12 @@ View (Vue) → Composable (业务逻辑) → Store (状态) → API (HTTP) → �
 通过 `data-theme` 属性切换暗/亮模式，所有颜色通过 CSS 自定义属性驱动：
 
 ```html
-<html data-theme="dark">  ← 暗色模式（默认）
-<html data-theme="light"> ← 亮色模式
+<html data-theme="dark">
+  ← 暗色模式（默认）
+  <html data-theme="light">
+    ← 亮色模式
+  </html>
+</html>
 ```
 
 120+ 个设计令牌覆盖背景、文字、主色、边框、侧边栏、Element Plus 变量等。

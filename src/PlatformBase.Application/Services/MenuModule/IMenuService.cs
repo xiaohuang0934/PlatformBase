@@ -24,6 +24,12 @@ public interface IMenuService
 
     /// <summary>删除（软删除）</summary>
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>为用户分配菜单（全量替换）</summary>
+    Task AssignMenusToUserAsync(Guid userId, IReadOnlyList<Guid> menuIds, CancellationToken ct = default);
+
+    /// <summary>获取用户已分配的菜单 ID 列表</summary>
+    Task<IReadOnlyList<Guid>> GetUserMenuIdsAsync(Guid userId, CancellationToken ct = default);
 }
 
 /// <summary>

@@ -34,7 +34,7 @@ export function getRolePermissions(id: string): Promise<ApiResult<string[]>> {
   return http.get(`${BASE}/${id}/permissions`).then(res => res.data)
 }
 
-/** 全量替换角色权限 */
-export function assignRolePermissions(id: string, data: { permissionIds: string[] }): Promise<ApiResult<null>> {
-  return http.put(`${BASE}/${id}/permissions`, data).then(res => res.data)
+/** 全量替换角色权限（body 为权限编码数组） */
+export function assignRolePermissions(id: string, permissionCodes: string[]): Promise<ApiResult<null>> {
+  return http.put(`${BASE}/${id}/permissions`, permissionCodes).then(res => res.data)
 }

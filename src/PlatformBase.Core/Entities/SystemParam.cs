@@ -25,6 +25,9 @@ public class SystemParam : SoftDeleteEntity
     /// <summary>是否启用</summary>
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>是否可被租户继承覆盖（true=租户参数可覆盖，false=仅平台级有效）</summary>
+    public bool Inheritable { get; set; } = true;
+
     /// <summary>同类内排序</summary>
     public int SortOrder { get; set; }
 }

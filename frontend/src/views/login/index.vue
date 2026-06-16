@@ -44,7 +44,7 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="login-stage" :class="{ 'login-stage--mobile': isMobile }">
+  <div class="login-stage grid-bg" :class="{ 'login-stage--mobile': isMobile }">
     <div class="login-card">
       <div class="login-card__header">
         <h1 class="login-card__title">

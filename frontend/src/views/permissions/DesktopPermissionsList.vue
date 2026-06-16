@@ -6,10 +6,10 @@ import { reactive, ref } from 'vue'
 import * as permApi from '@/api/permissions'
 import FormDialog from '@/components/FormDialog.vue'
 import TableToolbar from '@/components/TableToolbar.vue'
-import { useAuthStore } from '@/stores/auth'
 import { useCrudList } from '@/composables/useCrudList'
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm'
 import { useTableSelection } from '@/composables/useTableSelection'
+import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const { confirmDelete } = useDeleteConfirm()
@@ -41,7 +41,8 @@ function openEdit(row: any) { isEditing.value = true; dialogTitle.value = '编�
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
+  if (!valid)
+    return
   submitting.value = true
   try {
     if (isEditing.value) { await permApi.updatePermission(form.id, { name: form.name, group: form.group || undefined, description: form.description || undefined }); ElMessage.success('更新成功') }
@@ -61,18 +62,30 @@ onMounted(fetchList)
 
 <template>
   <div class="page-container">
-    <div class="page-header"><h2 class="page-header__title">权限管理</h2></div>
+    <div class="page-header">
+      <h2 class="page-header__title">
+        权限管理
+      </h2>
+    </div>
 
     <div class="search-bar">
       <el-input v-model="query.keyword" placeholder="权限名称 / 编码" clearable style="width: 220px" @keyup.enter="onSearch" />
-      <el-button type="primary" @click="onSearch">搜索</el-button>
-      <el-button @click="onReset">重置</el-button>
+      <el-button type="primary" @click="onSearch">
+        搜索
+      </el-button>
+      <el-button @click="onReset">
+        重置
+      </el-button>
     </div>
 
     <TableToolbar :selected-count="sel.selectedCount.value">
       <template #actions>
-        <el-button type="primary" @click="openCreate">新增权限</el-button>
-        <el-button :disabled="!sel.hasSelection.value" type="danger" plain @click="batchDelete">批量删除</el-button>
+        <el-button type="primary" @click="openCreate">
+          新增权限
+        </el-button>
+        <el-button :disabled="!sel.hasSelection.value" type="danger" plain @click="batchDelete">
+          批量删除
+        </el-button>
       </template>
     </TableToolbar>
 
@@ -85,8 +98,9 @@ onMounted(fetchList)
       <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button type="primary" link size="small" @click="openEdit(row)">
+            编辑
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -98,16 +112,26 @@ onMounted(fetchList)
 
   <FormDialog v-model="dialogVisible" :title="dialogTitle" :submitting="submitting" @confirm="handleSubmit" @closed="formRef?.resetFields()">
     <el-form ref="formRef" :model="form" :rules="formRules" label-width="80px">
-      <el-form-item label="名称" prop="name"><el-input v-model="form.name" placeholder="请输入权限名称" /></el-form-item>
-      <el-form-item label="编码" prop="code"><el-input v-model="form.code" :disabled="isEditing" placeholder="请输入权限编码" /></el-form-item>
-      <el-form-item v-if="!isEditing" label="接口路径" prop="resourcePath"><el-input v-model="form.resourcePath" placeholder="/api/v1/users" /></el-form-item>
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="form.name" placeholder="请输入权限名称" />
+      </el-form-item>
+      <el-form-item label="编码" prop="code">
+        <el-input v-model="form.code" :disabled="isEditing" placeholder="请输入权限编码" />
+      </el-form-item>
+      <el-form-item v-if="!isEditing" label="接口路径" prop="resourcePath">
+        <el-input v-model="form.resourcePath" placeholder="/api/v1/users" />
+      </el-form-item>
       <el-form-item v-if="!isEditing" label="HTTP方法" prop="httpMethod">
         <el-select v-model="form.httpMethod" placeholder="请选择" style="width:100%">
           <el-option label="GET" value="GET" /><el-option label="POST" value="POST" /><el-option label="PUT" value="PUT" /><el-option label="DELETE" value="DELETE" /><el-option label="PATCH" value="PATCH" />
         </el-select>
       </el-form-item>
-      <el-form-item label="分组"><el-input v-model="form.group" placeholder="如 users / roles" /></el-form-item>
-      <el-form-item label="描述"><el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" /></el-form-item>
+      <el-form-item label="分组">
+        <el-input v-model="form.group" placeholder="如 users / roles" />
+      </el-form-item>
+      <el-form-item label="描述">
+        <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
+      </el-form-item>
     </el-form>
   </FormDialog>
 </template>

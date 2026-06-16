@@ -2,19 +2,19 @@
 import type { FormInstance, FormRules } from 'element-plus'
 import type { CreateRoleDto, RoleDto } from '@/types/auth'
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import * as roleApi from '@/api/roles'
+import * as permApi from '@/api/permissions'
+import { getPermissions } from '@/api/auth'
 import FormDialog from '@/components/FormDialog.vue'
 import TableToolbar from '@/components/TableToolbar.vue'
 import TenantSelector from '@/components/TenantSelector.vue'
-import { useAuthStore } from '@/stores/auth'
 import { useCrudList } from '@/composables/useCrudList'
-import { useDeleteConfirm } from '@/composables/useDeleteConfirm'
 import { useTableSelection } from '@/composables/useTableSelection'
+import { useAuthStore } from '@/stores/auth'
 import { parseTime } from '@/utils/index'
 
 const auth = useAuthStore()
-const { confirmDelete } = useDeleteConfirm()
 const queryExt = reactive({ isSystem: undefined as boolean | undefined, tenantIds: [] as string[] })
 
 const { loading, list: roleList, total, query, fetchList, onSearch, onReset, onPageChange } = useCrudList<RoleDto>(
@@ -57,29 +57,98 @@ const formRules: FormRules = {
   code: [{ required: true, message: '请输入角色编码', trigger: 'blur' }],
 }
 
+// ─── 权限选择 ───
+interface GroupedPerm {
+  group: string
+  items: { code: string; name: string }[]
+}
+const allPermGroups = ref<GroupedPerm[]>([])
+const selectedPermCodes = ref<string[]>([])
+const permLoading = ref(false)
+
+/** 加载权限列表（按当前用户拥有的权限过滤 + 分组） */
+async function loadAllPermissions() {
+  permLoading.value = true
+  try {
+    // 获取当前用户拥有的权限编码
+    let userPermCodes: string[] = []
+    try {
+      const res = await getPermissions()
+      userPermCodes = res.data || []
+    } catch { /* 非登录态时使用空列表 */ }
+
+    // 获取全部权限（分页取全部）
+    const res = await permApi.getPermissionList({ pageIndex: 1, pageSize: 500 })
+    const allPerms = res.data?.items || []
+
+    // 过滤：平台管理员可见全部，租户用户只能看到自己拥有的
+    const filtered = auth.isPlatformAdmin ? allPerms : allPerms.filter((p: any) => userPermCodes.includes(p.code))
+
+    // 按 groupName 分组
+    const groupMap = new Map<string, { code: string; name: string }[]>()
+    for (const p of filtered) {
+      const g = p.groupName || '其他'
+      if (!groupMap.has(g)) groupMap.set(g, [])
+      groupMap.get(g)!.push({ code: p.code, name: p.name })
+    }
+
+    allPermGroups.value = Array.from(groupMap.entries())
+      .map(([group, items]) => ({ group, items }))
+  }
+  catch { /* ignore */ }
+  finally { permLoading.value = false }
+}
+
+/** 切换权限选择 */
+function togglePerm(code: string) {
+  const idx = selectedPermCodes.value.indexOf(code)
+  if (idx >= 0) selectedPermCodes.value.splice(idx, 1)
+  else selectedPermCodes.value.push(code)
+}
+
+// ─── 打开表单 ───
 function openCreate() {
   isEditing.value = false; dialogTitle.value = '新增角色'
   Object.assign(form, { id: '', name: '', code: '', description: '', tenantId: undefined })
+  selectedPermCodes.value = []
   dialogVisible.value = true
 }
 
-function openEdit(row: RoleDto) {
+async function openEdit(row: RoleDto) {
   isEditing.value = true; dialogTitle.value = '编辑角色'
   Object.assign(form, { id: row.id, name: row.name, code: row.code, description: row.description || '', tenantId: undefined })
+  selectedPermCodes.value = []
+  // 加载角色已有权限
+  try {
+    const res = await roleApi.getRolePermissions(row.id)
+    selectedPermCodes.value = res.data || []
+  }
+  catch { /* ignore */ }
   dialogVisible.value = true
 }
 
+// ─── 提交 ───
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
   submitting.value = true
   try {
-    if (isEditing.value) {
-      await roleApi.updateRole(form.id!, { name: form.name, description: form.description || undefined })
+    if (isEditing.value && form.id) {
+      await roleApi.updateRole(form.id, { name: form.name, description: form.description || undefined })
+      if (selectedPermCodes.value.length > 0)
+        await roleApi.assignRolePermissions(form.id, selectedPermCodes.value)
       ElMessage.success('更新成功')
     }
     else {
-      await roleApi.createRole({ name: form.name, code: form.code, description: form.description || undefined, tenantId: form.tenantId || null })
+      const res = await roleApi.createRole({
+        name: form.name, code: form.code,
+        description: form.description || undefined,
+        tenantId: form.tenantId || null,
+      })
+      if (selectedPermCodes.value.length > 0) {
+        const newRole: any = res.data
+        await roleApi.assignRolePermissions(newRole.id, selectedPermCodes.value)
+      }
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false; fetchList()
@@ -89,10 +158,13 @@ async function handleSubmit() {
 }
 
 function handleDelete(row: RoleDto) {
-  confirmDelete('角色', row.name, () => roleApi.deleteRole(row.id), fetchList)
+  // 已从页面上移除删除按钮，保留方法兼容
 }
 
-onMounted(fetchList)
+onMounted(() => {
+  fetchList()
+  loadAllPermissions()
+})
 </script>
 
 <template>
@@ -126,15 +198,16 @@ onMounted(fetchList)
       <el-table-column prop="code" label="编码" min-width="140" />
       <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
       <el-table-column label="类型" width="100" align="center">
-        <template #default="{ row }"><el-tag :type="row.isSystem ? 'info' : ''" size="small">{{ row.isSystem ? '系统' : '自定义' }}</el-tag></template>
+        <template #default="{ row }">
+          <el-tag :type="row.isSystem ? 'info' : ''" size="small">{{ row.isSystem ? '系统' : '自定义' }}</el-tag>
+        </template>
       </el-table-column>
       <el-table-column label="创建时间" width="160">
         <template #default="{ row }">{{ parseTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="150" fixed="right">
+      <el-table-column label="操作" width="100" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" link size="small" :disabled="row.isSystem" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -158,6 +231,19 @@ onMounted(fetchList)
       <el-form-item v-if="auth.isPlatformAdmin" label="租户">
         <TenantSelector v-model="form.tenantId" style="width:100%" />
         <div style="color: var(--el-text-color-secondary); font-size: 12px; margin-top: 4px">留空 = 全局角色，对所有租户可见</div>
+      </el-form-item>
+      <el-form-item label="权限">
+        <div v-loading="permLoading" style="max-height:300px;overflow-y:auto;border:1px solid var(--el-border-color);border-radius:4px;padding:12px;width:100%">
+          <div v-for="group in allPermGroups" :key="group.group" style="margin-bottom:8px">
+            <div style="font-size:13px;font-weight:600;color:var(--el-text-color-primary);margin-bottom:4px">{{ group.group }}</div>
+            <el-checkbox-group v-model="selectedPermCodes" size="small">
+              <el-checkbox v-for="item in group.items" :key="item.code" :label="item.code" style="margin-right:12px;margin-bottom:4px">
+                {{ item.name }}
+              </el-checkbox>
+            </el-checkbox-group>
+          </div>
+          <div v-if="allPermGroups.length === 0 && !permLoading" style="color:var(--el-text-color-secondary);font-size:13px">暂无可用权限</div>
+        </div>
       </el-form-item>
     </el-form>
   </FormDialog>

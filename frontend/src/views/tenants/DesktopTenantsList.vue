@@ -5,10 +5,10 @@ import { reactive, ref } from 'vue'
 import * as tenantApi from '@/api/tenants'
 import FormDialog from '@/components/FormDialog.vue'
 import TableToolbar from '@/components/TableToolbar.vue'
-import { useAuthStore } from '@/stores/auth'
 import { useCrudList } from '@/composables/useCrudList'
 import { useDeleteConfirm } from '@/composables/useDeleteConfirm'
 import { useTableSelection } from '@/composables/useTableSelection'
+import { useAuthStore } from '@/stores/auth'
 import { parseTime } from '@/utils/index'
 
 const auth = useAuthStore()
@@ -44,7 +44,8 @@ function openEdit(row: any) { isEditing.value = true; dialogTitle.value = '编�
 
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
+  if (!valid)
+    return
   submitting.value = true
   try {
     if (isEditing.value) { await tenantApi.updateTenant(form.id, { name: form.name, description: form.description || undefined }); ElMessage.success('更新成功') }
@@ -64,18 +65,30 @@ onMounted(fetchList)
 
 <template>
   <div class="page-container">
-    <div class="page-header"><h2 class="page-header__title">租户管理</h2></div>
+    <div class="page-header">
+      <h2 class="page-header__title">
+        租户管理
+      </h2>
+    </div>
 
     <div class="search-bar">
       <el-input v-model="query.keyword" placeholder="名称 / 编码" clearable style="width: 200px" @keyup.enter="onSearch" />
-      <el-button type="primary" @click="onSearch">搜索</el-button>
-      <el-button @click="onReset">重置</el-button>
+      <el-button type="primary" @click="onSearch">
+        搜索
+      </el-button>
+      <el-button @click="onReset">
+        重置
+      </el-button>
     </div>
 
     <TableToolbar :selected-count="sel.selectedCount.value">
       <template #actions>
-        <el-button type="primary" @click="openCreate">新增租户</el-button>
-        <el-button :disabled="!sel.hasSelection.value" type="danger" plain @click="batchDelete">批量删除</el-button>
+        <el-button type="primary" @click="openCreate">
+          新增租户
+        </el-button>
+        <el-button :disabled="!sel.hasSelection.value" type="danger" plain @click="batchDelete">
+          批量删除
+        </el-button>
       </template>
     </TableToolbar>
 
@@ -85,11 +98,16 @@ onMounted(fetchList)
       <el-table-column prop="name" label="租户名称" min-width="140" />
       <el-table-column prop="code" label="编码" width="140" />
       <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-      <el-table-column label="创建时间" width="160"><template #default="{ row }">{{ parseTime(row.createdAt) }}</template></el-table-column>
+      <el-table-column label="创建时间" width="160">
+        <template #default="{ row }">
+          {{ parseTime(row.createdAt) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button type="primary" link size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button type="primary" link size="small" @click="openEdit(row)">
+            编辑
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -101,9 +119,15 @@ onMounted(fetchList)
 
   <FormDialog v-model="dialogVisible" :title="dialogTitle" :submitting="submitting" @confirm="handleSubmit" @closed="formRef?.resetFields()">
     <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-      <el-form-item label="名称" prop="name"><el-input v-model="form.name" placeholder="请输入租户名称" /></el-form-item>
-      <el-form-item label="编码" prop="code"><el-input v-model="form.code" :disabled="isEditing" placeholder="请输入租户编码" /></el-form-item>
-      <el-form-item label="描述"><el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" /></el-form-item>
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="form.name" placeholder="请输入租户名称" />
+      </el-form-item>
+      <el-form-item label="编码" prop="code">
+        <el-input v-model="form.code" :disabled="isEditing" placeholder="请输入租户编码" />
+      </el-form-item>
+      <el-form-item label="描述">
+        <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
+      </el-form-item>
     </el-form>
   </FormDialog>
 </template>

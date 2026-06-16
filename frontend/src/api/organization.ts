@@ -5,8 +5,8 @@ import http from './index'
 const BASE = '/organization-units'
 
 /** 获取部门全量树（用于 OrgSelector 组件） */
-export function getOrgUnitTree(): Promise<ApiResult<any[]>> {
-  return http.get(BASE, { params: { mode: 'tree' } }).then(res => res.data)
+export function getOrgUnitTree(params?: { tenantId?: string }): Promise<ApiResult<any[]>> {
+  return http.get(BASE, { params: { mode: 'tree', ...params } }).then(res => res.data)
 }
 
 /** 懒加载：租户摘要（无参）或指定租户/父级的部门列表 */

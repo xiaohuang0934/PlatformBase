@@ -18,7 +18,8 @@ const userTypeLabel: Record<number, string> = {
 }
 
 const roleLabel = computed(() => {
-  if (!auth.user) return ''
+  if (!auth.user)
+    return ''
   return userTypeLabel[auth.user.userType] || `用户类型${auth.user.userType}`
 })
 

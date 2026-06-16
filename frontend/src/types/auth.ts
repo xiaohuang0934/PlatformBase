@@ -56,7 +56,7 @@ export interface PermissionDto {
   id: string
   name: string
   code: string
-  group: string | null
+  groupName: string | null
   description: string | null
 }
 

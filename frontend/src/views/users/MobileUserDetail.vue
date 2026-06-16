@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { UserType } from '@/types/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as userApi from '@/api/users'
+import { UserType } from '@/types/user'
 import { parseTime } from '@/utils/index'
 
 const route = useRoute()
@@ -28,7 +28,8 @@ async function loadDetail() {
 function goEdit() { router.push(`/m/users/${userId}/edit`) }
 
 async function handleToggle() {
-  if (!user.value) return
+  if (!user.value)
+    return
   try { await userApi.toggleUser(userId); ElMessage.success(user.value.isActive ? '已禁用' : '已启用'); user.value.isActive = !user.value.isActive }
   catch { ElMessage.error('操作失败') }
 }

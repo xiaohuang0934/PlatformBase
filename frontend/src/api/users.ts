@@ -1,6 +1,5 @@
 import type { ApiResult, PagedResult } from '@/types/api-result'
-import type { OrgUnitNode } from '@/types/user'
-import type { AssignRolesDto, CreateUserDto, UpdateUserDto, UserDto, UserQuery } from '@/types/user'
+import type { AssignRolesDto, CreateUserDto, OrgUnitNode, UpdateUserDto, UserDto, UserQuery } from '@/types/user'
 import http from './index'
 
 const BASE = '/users'

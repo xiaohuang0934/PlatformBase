@@ -55,12 +55,19 @@ textarea {
   height: 5px;
 }
 
-::-webkit-scrollbar-thumb {
+[data-theme='dark'] ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 3px;
-
   &:hover {
     background: rgba(255, 255, 255, 0.18);
+  }
+}
+
+[data-theme='light'] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  &:hover {
+    background: rgba(0, 0, 0, 0.2);
   }
 }
 

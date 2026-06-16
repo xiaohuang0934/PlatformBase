@@ -198,11 +198,11 @@ watch(() => route.path, () => {
     border: none;
     border-radius: 50%;
     cursor: pointer;
-    transition: background $transition-fast;
+    transition: all $transition-fast;
 
     &:hover {
-      color: #fff;
-      background: $color-danger;
+      color: $color-danger;
+      background: rgba(229, 72, 77, 0.1);
     }
   }
 

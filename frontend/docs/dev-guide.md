@@ -99,9 +99,11 @@ async function fetchData() {
   loading.value = true
   try {
     // ...
-  } catch {
+  }
+  catch {
     ElMessage.error('加载失败，请重试')
-  } finally { loading.value = false }
+  }
+  finally { loading.value = false }
 }
 </script>
 ```
@@ -131,9 +133,11 @@ async function handleSubmit() {
     await api.create(data)
     ElMessage.success('创建成功')
     dialogVisible.value = false; fetchList()
-  } catch {
+  }
+  catch {
     ElMessage.error('操作失败，请重试')
-  } finally { submitting.value = false }
+  }
+  finally { submitting.value = false }
 }
 ```
 
@@ -149,7 +153,8 @@ async function handleDelete(row) {
       cancelButtonText: '取消',
       type: 'warning',
     })
-  } catch { return }
+  }
+  catch { return }
   await api.delete(row.id)
   ElMessage.success('已删除')
   fetchList()

@@ -25,6 +25,9 @@ public class CreateSystemParamDto
     /// <summary>参数说明</summary>
     public string? Description { get; set; }
 
+    /// <summary>是否可被租户继承覆盖，默认 true</summary>
+    public bool Inheritable { get; set; } = true;
+
     /// <summary>排序号，默认 0</summary>
     public int SortOrder { get; set; }
 }

@@ -8,8 +8,8 @@ defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  confirm: []
-  closed: []
+  'confirm': []
+  'closed': []
 }>()
 
 function handleClose() {

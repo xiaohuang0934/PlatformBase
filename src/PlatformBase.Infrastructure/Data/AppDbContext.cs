@@ -100,6 +100,9 @@ public class AppDbContext : DbContext
     /// <summary>菜单表</summary>
     public DbSet<Menu> Menus { get; set; } = null!;
 
+    /// <summary>用户-菜单关联表</summary>
+    public DbSet<UserMenu> UserMenus { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // ───── 认证授权实体配置 ─────
@@ -220,6 +223,21 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(m => m.ParentId);
             e.HasIndex(m => m.PermissionCode);
+        });
+
+        modelBuilder.Entity<UserMenu>(e =>
+        {
+            e.HasKey(um => new { um.UserId, um.MenuId });
+            e.HasIndex(um => um.UserId);
+            e.HasIndex(um => um.MenuId);
+            e.HasOne(um => um.User)
+             .WithMany()
+             .HasForeignKey(um => um.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(um => um.Menu)
+             .WithMany()
+             .HasForeignKey(um => um.MenuId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ───── 多租户全局查询过滤器（ITenantAware 实体的数据隔离）─────

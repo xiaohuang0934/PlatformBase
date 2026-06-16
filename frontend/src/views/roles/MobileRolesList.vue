@@ -5,43 +5,125 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import * as roleApi from '@/api/roles'
 import { parseTime } from '@/utils/index'
+import MobileFilterBar, { type FilterItemConfig } from '@/components/MobileFilterBar.vue'
 
-const router = useRouter(); const loading = ref(false); const list = ref<RoleDto[]>([]); const finished = ref(false)
-const keyword = ref(''); const pageIndex = ref(1)
+const router = useRouter()
+const loading = ref(false)
+const list = ref<RoleDto[]>([])
+const finished = ref(false)
+const keyword = ref('')
+const pageIndex = ref(1)
+
+/** 筛选条件值 */
+const filterValues = reactive<Record<string, any>>({
+  isSystem: undefined,
+})
+
+/** 筛选项配置 */
+const filterItems = ref<FilterItemConfig[]>([
+  {
+    key: 'isSystem',
+    title: '类型',
+    type: 'select',
+    options: [
+      { label: '全部', value: undefined },
+      { label: '系统', value: true },
+      { label: '自定义', value: false },
+    ],
+  },
+])
+
 /** 获取 List */
 async function fetchList() {
-  loading.value = true; try {
-    const res = await roleApi.getRoleList({ keyword: keyword.value || undefined, pageIndex: pageIndex.value, pageSize: 10 }); const items = res.data.items; if (pageIndex.value === 1)
-      list.value = items; else list.value.push(...items); finished.value = items.length < 10
+  loading.value = true
+  try {
+    const res = await roleApi.getRoleList({
+      keyword: keyword.value || undefined,
+      isSystem: filterValues.isSystem,
+      pageIndex: pageIndex.value,
+      pageSize: 10,
+    })
+    const items = res.data.items
+    if (pageIndex.value === 1)
+      list.value = items
+    else
+      list.value.push(...items)
+    finished.value = items.length < 10
   }
-  catch { ElMessage.error('加载失败') }
-  finally { loading.value = false }
+  catch {
+    ElMessage.error('加载失败')
+  }
+  finally {
+    loading.value = false
+  }
 }
+
 /** 搜索 */
-function onSearch() { pageIndex.value = 1; fetchList() }
+function onSearch() {
+  pageIndex.value = 1
+  fetchList()
+}
+
+/** 筛选变化 */
+function onFilterChange() {
+  pageIndex.value = 1
+  fetchList()
+}
+
 /** 滚动加载更多 */
-function onLoad() { pageIndex.value++; fetchList() }
+function onLoad() {
+  pageIndex.value++
+  fetchList()
+}
+
 /** 跳转到详情页 */
-function goDetail(id: string) { router.push(`/m/roles/${id}`) }
+function goDetail(id: string) {
+  router.push(`/m/roles/${id}`)
+}
+
 onMounted(fetchList)
 
-const showForm = ref(false); const form = reactive({ name: '', code: '', description: '' }); const submitting = ref(false)
-/** 打开 Create */
-function openCreate() { Object.assign(form, { name: '', code: '', description: '' }); showForm.value = true }
-/** Create */
+const showForm = ref(false)
+const form = reactive({ name: '', code: '', description: '' })
+const submitting = ref(false)
+
+/** 打开创建表单 */
+function openCreate() {
+  Object.assign(form, { name: '', code: '', description: '' })
+  showForm.value = true
+}
+
+/** 创建角色 */
 async function handleCreate() {
   if (!form.name || !form.code)
-    return; submitting.value = true; try { await roleApi.createRole({ name: form.name, code: form.code, description: form.description || undefined }); ElMessage.success('创建成功'); showForm.value = false; pageIndex.value = 1; list.value = []; fetchList() }
-  catch { ElMessage.error('操作失败') }
-  finally { submitting.value = false }
+    return
+  submitting.value = true
+  try {
+    await roleApi.createRole({ name: form.name, code: form.code, description: form.description || undefined })
+    ElMessage.success('创建成功')
+    showForm.value = false
+    pageIndex.value = 1
+    list.value = []
+    fetchList()
+  }
+  catch {
+    ElMessage.error('操作失败')
+  }
+  finally {
+    submitting.value = false
+  }
 }
 </script>
 
 <template>
   <div class="m-page">
-    <van-sticky>
-      <van-search v-model="keyword" placeholder="搜索名称/编码" shape="round" @search="onSearch" @clear="onSearch" />
-    </van-sticky>
+    <MobileFilterBar
+      v-model="filterValues"
+      v-model:keyword="keyword"
+      :items="filterItems"
+      @search="onSearch"
+      @filter-change="onFilterChange"
+    />
     <div class="m-toolbar">
       <van-button type="primary" block round @click="openCreate">
         添加
@@ -57,7 +139,8 @@ async function handleCreate() {
       <div class="m-card-list">
         <div v-for="item in list" :key="item.id" class="m-card-list__item" @click="goDetail(item.id)">
           <div class="card-header">
-            <span class="card-header__title">{{ item.name }} <van-icon name="arrow" size="14" color="var(--color-text-dim)" /></span><van-tag :type="item.isSystem ? 'primary' : ''" size="medium">
+            <span class="card-header__title">{{ item.name }} <van-icon name="arrow" size="14" color="var(--color-text-dim)" /></span>
+            <van-tag :type="item.isSystem ? 'primary' : 'default'" size="medium">
               {{ item.isSystem ? '系统' : '自定义' }}
             </van-tag>
           </div>
@@ -69,16 +152,16 @@ async function handleCreate() {
           </div>
           <div class="card-row">
             <span class="card-row__label">创建</span><span>{{ parseTime(item.createdAt) }}</span>
-            <div class="card-footer">
-              <div class="card-footer" />
-            </div>
           </div>
         </div>
       </div>
     </van-list>
     <van-action-sheet v-model:show="showForm" title="新增角色">
       <div style="padding:16px">
-        <van-field v-model="form.name" label="名称" placeholder="请输入角色名称" /><van-field v-model="form.code" label="编码" placeholder="请输入角色编码" /><van-field v-model="form.description" label="描述" type="textarea" autosize /><van-button round block type="primary" :loading="submitting" style="margin-top:16px" @click="handleCreate">
+        <van-field v-model="form.name" label="名称" placeholder="请输入角色名称" />
+        <van-field v-model="form.code" label="编码" placeholder="请输入角色编码" />
+        <van-field v-model="form.description" label="描述" type="textarea" autosize />
+        <van-button round block type="primary" :loading="submitting" style="margin-top:16px" @click="handleCreate">
           确定
         </van-button>
       </div>
@@ -88,7 +171,7 @@ async function handleCreate() {
 
 <style scoped lang="scss">
 .m-toolbar {
-  padding: 8px 12px;
+  padding: 0 $spacing-base $spacing-sm;
 }
 .card-header {
   display: flex;
@@ -113,5 +196,3 @@ async function handleCreate() {
   }
 }
 </style>
-
-.card-footer { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--color-border); } .card-footer__link { font-size: 12px; color: var(--color-text-dim); }

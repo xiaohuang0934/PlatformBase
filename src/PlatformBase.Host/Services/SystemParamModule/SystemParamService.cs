@@ -149,7 +149,8 @@ public class SystemParamService : ISystemParamService
             Category = dto.Category,
             Description = dto.Description,
             SortOrder = dto.SortOrder,
-            IsEnabled = true
+            IsEnabled = true,
+            Inheritable = dto.Inheritable
         };
 
         var created = await _uow.Repository<SystemParam>().AddAsync(entity, cancellationToken);
@@ -179,6 +180,7 @@ public class SystemParamService : ISystemParamService
         if (dto.Category != null) entity.Category = dto.Category;
         if (dto.Description != null) entity.Description = dto.Description;
         if (dto.IsEnabled.HasValue) entity.IsEnabled = dto.IsEnabled.Value;
+        if (dto.Inheritable.HasValue) entity.Inheritable = dto.Inheritable.Value;
         if (dto.SortOrder.HasValue) entity.SortOrder = dto.SortOrder.Value;
 
         _uow.Repository<SystemParam>().Update(entity);
@@ -290,6 +292,7 @@ public class SystemParamService : ISystemParamService
         Category = entity.Category,
         Description = entity.Description,
         IsEnabled = entity.IsEnabled,
+        Inheritable = entity.Inheritable,
         SortOrder = entity.SortOrder,
         CreatedAt = entity.CreatedAt,
         UpdatedAt = entity.UpdatedAt

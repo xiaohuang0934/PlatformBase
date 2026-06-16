@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { RoleDto } from '@/types/auth'
-import { UserType } from '@/types/user'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -92,7 +91,8 @@ async function handleSubmit() {
 }
 
 async function handleToggle() {
-  if (!user.value) return
+  if (!user.value)
+    return
   try {
     await userApi.toggleUser(userId.value)
     ElMessage.success(user.value.isActive ? '已禁用' : '已启用')
@@ -114,7 +114,8 @@ function confirmRoles() {
 }
 function toggleRole(roleId: string) {
   const idx = selectedRoles.value.indexOf(roleId)
-  if (idx >= 0) selectedRoles.value.splice(idx, 1)
+  if (idx >= 0)
+    selectedRoles.value.splice(idx, 1)
   else selectedRoles.value.push(roleId)
 }
 
@@ -134,7 +135,8 @@ function flattenTree(nodes: any[]): any[] {
   function walk(list: any[]) {
     for (const n of list) {
       result.push({ id: n.id, name: n.name, code: n.code })
-      if (n.children?.length) walk(n.children)
+      if (n.children?.length)
+        walk(n.children)
     }
   }
   walk(nodes)
@@ -143,7 +145,8 @@ function flattenTree(nodes: any[]): any[] {
 
 function toggleOrg(id: string) {
   const idx = selectedOrgIds.value.indexOf(id)
-  if (idx >= 0) selectedOrgIds.value.splice(idx, 1)
+  if (idx >= 0)
+    selectedOrgIds.value.splice(idx, 1)
   else selectedOrgIds.value.push(id)
 }
 

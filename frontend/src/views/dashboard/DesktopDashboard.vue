@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { IconBolt, IconLock, IconShield } from '@tabler/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -21,7 +22,7 @@ const auth = useAuthStore()
     <div class="card-grid">
       <div class="stat-card">
         <div class="stat-card__icon">
-          <span class="stat-card__emoji">⚡</span>
+          <IconBolt class="stat-card__icon-svg" />
         </div>
         <div class="stat-card__body">
           <p class="stat-card__value">
@@ -35,7 +36,7 @@ const auth = useAuthStore()
 
       <div class="stat-card">
         <div class="stat-card__icon">
-          <span class="stat-card__emoji">🔐</span>
+          <IconLock class="stat-card__icon-svg" />
         </div>
         <div class="stat-card__body">
           <p class="stat-card__value">
@@ -49,7 +50,7 @@ const auth = useAuthStore()
 
       <div class="stat-card">
         <div class="stat-card__icon">
-          <span class="stat-card__emoji">🛡️</span>
+          <IconShield class="stat-card__icon-svg" />
         </div>
         <div class="stat-card__body">
           <p class="stat-card__value">
@@ -105,8 +106,10 @@ const auth = useAuthStore()
     flex-shrink: 0;
   }
 
-  &__emoji {
-    font-size: 22px;
+  &__icon-svg {
+    width: 24px;
+    height: 24px;
+    color: $color-primary;
   }
 
   &__body {

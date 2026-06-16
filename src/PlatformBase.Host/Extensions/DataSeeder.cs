@@ -30,7 +30,7 @@ public static class DataSeeder
         var orgMaps = await SeedOrganizationUnitsAsync(uow, context, adminId, defaultTenantId, zhijihuiTenantId);
         var userMaps = await SeedTenantUsersAsync(uow, context, adminId, defaultTenantId, zhijihuiTenantId);
         await SeedUserOrganizationsAsync(context, userMaps, orgMaps);
-        await SeedMenusAsync(uow, adminId);
+        await SeedMenusAsync(uow, context, adminId);
         await SeedDemoDataAsync(uow, context, userMaps);
 
         scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
@@ -137,7 +137,8 @@ public static class DataSeeder
 
     private static (string Name, string Code, string Description, bool IsSystem)[] GetSeedRoles() =>
     [
-        ("Admin", "admin", "系统管理员 — 拥有全部权限", true),
+        ("Admin", "admin", "系统管理员 — 拥有全部权限（仅平台管理员）", true),
+        ("TenantAdmin", "tenant_admin", "租户管理员 — 租户内全部权限（不含租户管理、系统参数、系统监控）", true),
         ("Manager", "manager", "业务管理员 — 用户和角色查看", true),
         ("User", "user", "普通用户 — 最小权限", true)
     ];
@@ -240,7 +241,7 @@ public static class DataSeeder
             }
         }
 
-        // 给 admin 分配 Admin 角色
+        // 给 admin 分配 Admin 角色（平台管理员）
         var admin = await uow.Repository<User>()
             .FirstOrDefaultAsync(u => u.NormalizedUsername == Norm("admin"));
         if (admin != null && roleMap.TryGetValue("Admin", out var adminRoleId))
@@ -253,10 +254,28 @@ public static class DataSeeder
                 await context.SaveChangesAsync();
             }
         }
+
+        // 给租户管理员分配 TenantAdmin 角色
+        var tenantAdmins = await uow.Repository<User>()
+            .FindAsync(u => u.UserType == UserType.TenantAdmin);
+        if (roleMap.TryGetValue("TenantAdmin", out var tenantAdminRoleId))
+        {
+            foreach (var ta in tenantAdmins)
+            {
+                var exists = await context.Set<UserRole>()
+                    .AnyAsync(ur => ur.UserId == ta.Id && ur.RoleId == tenantAdminRoleId);
+                if (!exists)
+                {
+                    context.Set<UserRole>().Add(new UserRole { UserId = ta.Id, RoleId = tenantAdminRoleId });
+                }
+            }
+            await context.SaveChangesAsync();
+        }
     }
 
     private static (string RoleName, string[] PermCodes)[] GetSeedRolePermissions() =>
     [
+        // Admin 角色：平台管理员专用，拥有全部权限
         ("Admin", ["users.list", "users.create", "users.edit", "users.delete",
                    "roles.list", "roles.create", "roles.edit", "roles.delete",
                    "perms.list", "perms.create", "perms.edit", "perms.delete",
@@ -268,8 +287,17 @@ public static class DataSeeder
                    "org-units.list", "org-units.create", "org-units.edit", "org-units.delete",
                    "menus.list", "menus.create", "menus.edit", "menus.delete",
                    "notifications.manage"]),
+        // TenantAdmin 角色：租户管理员专用，不含租户管理、系统参数、权限管理、系统监控、菜单管理
+        ("TenantAdmin", ["users.list", "users.create", "users.edit", "users.delete",
+                         "roles.list", "roles.create", "roles.edit", "roles.delete",
+                         "datadict.list", "datadict.create", "datadict.edit", "datadict.delete",
+                         "tenant-params.list", "tenant-params.create", "tenant-params.edit", "tenant-params.delete",
+                         "org-units.list", "org-units.create", "org-units.edit", "org-units.delete",
+                         "files.upload", "notifications.manage"]),
+        // Manager 角色：业务管理员，仅查看
         ("Manager", ["users.list", "roles.list", "perms.list"]),
-        ("User", ["users.list"])
+        // User 角色：普通用户，最小权限
+        ("User", [])
     ];
 
     // ═══════════════════ 系统参数 ═══════════════════
@@ -295,25 +323,31 @@ public static class DataSeeder
 
     private static SystemParam[] GetSeedSystemParams() =>
     [
-        new() { Code = "site_name", Name = "站点名称", Value = "PlatformBase", Category = "general", SortOrder = 1, Description = "站点/应用名称，前端页面标题等位置使用" },
-        new() { Code = "company_name", Name = "公司名称", Value = "PlatformBase", Category = "general", SortOrder = 2, Description = "系统所属公司名称" },
-        new() { Code = "default_page_size", Name = "默认分页大小", Value = "20", Category = "general", SortOrder = 3, Description = "列表分页的默认每页条数" },
-        new() { Code = "max_export_rows", Name = "最大导出行数", Value = "10000", Category = "general", SortOrder = 4, Description = "导出数据的最大行数限制" },
-        new() { Code = "log_retention_days", Name = "日志保留天数", Value = "90", Category = "general", SortOrder = 5, Description = "操作日志保留天数" },
-        new() { Code = "max_login_attempts", Name = "最大登录失败次数", Value = "5", Category = "security", SortOrder = 1, Description = "连续登录失败达到此次数后锁定账户" },
-        new() { Code = "lockout_minutes", Name = "锁定分钟数", Value = "5", Category = "security", SortOrder = 2, Description = "账户被锁定后自动解锁的分钟数" },
-        new() { Code = "access_token_lifetime", Name = "Token有效期(秒)", Value = "300", Category = "security", SortOrder = 3, Description = "AccessToken 签发的有效时长" },
-        new() { Code = "refresh_token_days", Name = "RefreshToken有效期(天)", Value = "30", Category = "security", SortOrder = 4, Description = "RefreshToken 的有效天数" },
-        new() { Code = "super_admin_username", Name = "超级管理员用户名", Value = "admin", Category = "security", SortOrder = 5, Description = "系统超级管理员用户名标识" },
-        new() { Code = "enable_register", Name = "开放注册", Value = "true", Category = "feature-toggle", SortOrder = 1, Description = "是否允许新用户自行注册" },
-        new() { Code = "enable_captcha", Name = "验证码开关", Value = "false", Category = "feature-toggle", SortOrder = 2, Description = "登录/注册时是否启用验证码校验" },
-        new() { Code = "maintenance_mode", Name = "维护模式", Value = "false", Category = "feature-toggle", SortOrder = 3, Description = "开启后仅管理员可访问系统" },
-        new() { Code = "enable_multi_tenant", Name = "启用多租户", Value = "true", Category = "feature-toggle", SortOrder = 4, Description = "是否启用多租户功能" },
-        new() { Code = "enable_org_unit", Name = "启用组织架构", Value = "true", Category = "feature-toggle", SortOrder = 5, Description = "是否启用组织架构功能" },
-        new() { Code = "org_null_data_visibility", Name = "未归属部门数据可见性", Value = "all", Category = "data-scope", SortOrder = 1, Description = "未归属部门数据的可见性配置：all=租户内全部可见，admin_only=仅管理员可见" },
-        new() { Code = "default_tenant_quota", Name = "默认租户配额", Value = "100", Category = "tenant", SortOrder = 1, Description = "新租户默认用户数量上限" },
-        new() { Code = "tenant_trial_days", Name = "试用天数", Value = "30", Category = "tenant", SortOrder = 2, Description = "新租户试用期天数" },
-        new() { Code = "smtp:default", Name = "SMTP邮件配置", Value = "{\"Host\":\"\",\"Port\":587,\"User\":\"\",\"Password\":\"\",\"From\":\"\"}", Category = "smtp", SortOrder = 1, Description = "SMTP 邮件服务器配置（JSON）" }
+        // general 分类：全部可继承（租户可为不同名称/配置）
+        new() { Code = "site_name", Name = "站点名称", Value = "PlatformBase", Category = "general", SortOrder = 1, Inheritable = true, Description = "站点/应用名称，前端页面标题等位置使用" },
+        new() { Code = "company_name", Name = "公司名称", Value = "PlatformBase", Category = "general", SortOrder = 2, Inheritable = true, Description = "系统所属公司名称" },
+        new() { Code = "default_page_size", Name = "默认分页大小", Value = "20", Category = "general", SortOrder = 3, Inheritable = true, Description = "列表分页的默认每页条数" },
+        new() { Code = "max_export_rows", Name = "最大导出行数", Value = "10000", Category = "general", SortOrder = 4, Inheritable = true, Description = "导出数据的最大行数限制" },
+        new() { Code = "log_retention_days", Name = "日志保留天数", Value = "90", Category = "general", SortOrder = 5, Inheritable = true, Description = "操作日志保留天数" },
+        // security 分类：平台级安全策略，不可继承
+        new() { Code = "max_login_attempts", Name = "最大登录失败次数", Value = "5", Category = "security", SortOrder = 1, Inheritable = false, Description = "连续登录失败达到此次数后锁定账户" },
+        new() { Code = "lockout_minutes", Name = "锁定分钟数", Value = "5", Category = "security", SortOrder = 2, Inheritable = false, Description = "账户被锁定后自动解锁的分钟数" },
+        new() { Code = "access_token_lifetime", Name = "Token有效期(秒)", Value = "300", Category = "security", SortOrder = 3, Inheritable = false, Description = "AccessToken 签发的有效时长" },
+        new() { Code = "refresh_token_days", Name = "RefreshToken有效期(天)", Value = "30", Category = "security", SortOrder = 4, Inheritable = false, Description = "RefreshToken 的有效天数" },
+        new() { Code = "super_admin_username", Name = "超级管理员用户名", Value = "admin", Category = "security", SortOrder = 5, Inheritable = false, Description = "系统超级管理员用户名标识" },
+        // feature-toggle 分类：平台级功能开关，不可继承
+        new() { Code = "enable_register", Name = "开放注册", Value = "true", Category = "feature-toggle", SortOrder = 1, Inheritable = false, Description = "是否允许新用户自行注册" },
+        new() { Code = "enable_captcha", Name = "验证码开关", Value = "false", Category = "feature-toggle", SortOrder = 2, Inheritable = false, Description = "登录/注册时是否启用验证码校验" },
+        new() { Code = "maintenance_mode", Name = "维护模式", Value = "false", Category = "feature-toggle", SortOrder = 3, Inheritable = false, Description = "开启后仅管理员可访问系统" },
+        new() { Code = "enable_multi_tenant", Name = "启用多租户", Value = "true", Category = "feature-toggle", SortOrder = 4, Inheritable = false, Description = "是否启用多租户功能" },
+        new() { Code = "enable_org_unit", Name = "启用组织架构", Value = "true", Category = "feature-toggle", SortOrder = 5, Inheritable = false, Description = "是否启用组织架构功能" },
+        // data-scope：数据可见性，租户可自定义
+        new() { Code = "org_null_data_visibility", Name = "未归属部门数据可见性", Value = "all", Category = "data-scope", SortOrder = 1, Inheritable = true, Description = "未归属部门数据的可见性配置：all=租户内全部可见，admin_only=仅管理员可见" },
+        // tenant 分类：平台级租户管理参数，不可继承
+        new() { Code = "default_tenant_quota", Name = "默认租户配额", Value = "100", Category = "tenant", SortOrder = 1, Inheritable = false, Description = "新租户默认用户数量上限" },
+        new() { Code = "tenant_trial_days", Name = "试用天数", Value = "30", Category = "tenant", SortOrder = 2, Inheritable = false, Description = "新租户试用期天数" },
+        // smtp：平台级邮件配置，不可继承
+        new() { Code = "smtp:default", Name = "SMTP邮件配置", Value = "{\"Host\":\"\",\"Port\":587,\"User\":\"\",\"Password\":\"\",\"From\":\"\"}", Category = "smtp", SortOrder = 1, Inheritable = false, Description = "SMTP 邮件服务器配置（JSON）" }
     ];
 
     // ═══════════════════ 数据字典 ═══════════════════
@@ -813,7 +847,7 @@ public static class DataSeeder
         var usersToCreate = new[]
         {
             (Username: "zhijihui_admin", Password: "Admin@123", Email: "admin@zhijihui.com",
-             UserType: UserType.TenantAdmin, Role: "Admin", DisplayName: "智汇集管理员"),
+             UserType: UserType.TenantAdmin, Role: "TenantAdmin", DisplayName: "智汇集管理员"),
             (Username: "zhijihui_ceo", Password: "Ceo@123", Email: "ceo@zhijihui.com",
              UserType: UserType.TenantUser, Role: "Manager", DisplayName: "CEO"),
             (Username: "zhijihui_cto", Password: "Cto@123", Email: "cto@zhijihui.com",
@@ -874,7 +908,7 @@ public static class DataSeeder
         var usersToCreate = new[]
         {
             (Username: "default_admin", Password: "Admin@123", Email: "admin@default.com",
-             UserType: UserType.TenantAdmin, Role: "Admin", DisplayName: "默认管理员"),
+             UserType: UserType.TenantAdmin, Role: "TenantAdmin", DisplayName: "默认管理员"),
             (Username: "default_manager", Password: "Manager@123", Email: "manager@default.com",
              UserType: UserType.TenantUser, Role: "Manager", DisplayName: "技术经理"),
             (Username: "default_dev", Password: "Dev@123", Email: "dev@default.com",
@@ -985,7 +1019,7 @@ public static class DataSeeder
 
     // ═══════════════════ 菜单 ═══════════════════
 
-    private static async Task SeedMenusAsync(IUnitOfWork uow, Guid createdBy)
+    private static async Task SeedMenusAsync(IUnitOfWork uow, AppDbContext context, Guid createdBy)
     {
         var existing = await uow.Repository<Menu>().GetAllAsync();
         if (existing.Count > 0) return;
@@ -1002,19 +1036,83 @@ public static class DataSeeder
 
         await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "菜单管理", Type = 2, Icon = "IconMenu2", Path = "/menus", PermissionCode = "menus.list", SortOrder = 1, KeepAlive = true, IsVisible = true, IsEnabled = true });
         await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "系统参数", Type = 2, Icon = "IconSettingsCog", Path = "/system-params", PermissionCode = "system-params.list", SortOrder = 2, KeepAlive = true, IsVisible = true, IsEnabled = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "数据字典", Type = 2, Icon = "IconBooks", Path = "/data-dict", PermissionCode = "datadict.list", SortOrder = 3, KeepAlive = true, IsVisible = true, IsEnabled = true });
-        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "文件管理", Type = 2, Icon = "IconFolders", Path = "/files", PermissionCode = "files.upload", SortOrder = 4, KeepAlive = true, IsVisible = true, IsEnabled = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "租户参数", Type = 2, Icon = "IconSettingsCog", Path = "/tenant-params", PermissionCode = "tenant-params.list", SortOrder = 3, KeepAlive = true, IsVisible = true, IsEnabled = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "数据字典", Type = 2, Icon = "IconBooks", Path = "/data-dict", PermissionCode = "datadict.list", SortOrder = 4, KeepAlive = true, IsVisible = true, IsEnabled = true });
+        await AddMenu(uow, createdBy, new Menu { ParentId = confMenu.Id, Name = "文件管理", Type = 2, Icon = "IconFolders", Path = "/files", PermissionCode = "files.upload", SortOrder = 5, KeepAlive = true, IsVisible = true, IsEnabled = true });
 
         await AddMenu(uow, createdBy, new Menu { ParentId = monMenu.Id, Name = "操作日志", Type = 2, Icon = "IconFileText", Path = "/operation-logs", PermissionCode = "operation-logs.list", SortOrder = 1, KeepAlive = true, IsVisible = true, IsEnabled = true });
         await AddMenu(uow, createdBy, new Menu { ParentId = monMenu.Id, Name = "定时任务", Type = 2, Icon = "IconClock", Path = "/jobs", PermissionCode = "jobs.list", SortOrder = 2, KeepAlive = true, IsVisible = true, IsEnabled = true });
 
         await uow.SaveChangesAsync();
+
+        // 为用户分配菜单（平台管理员看全部，租户管理员和普通用户需要关联）
+        await SeedUserMenusAsync(uow, context);
     }
 
     private static async Task<Menu> AddMenu(IUnitOfWork uow, Guid createdBy, Menu menu)
     {
         menu.CreatedBy = createdBy;
         return await uow.Repository<Menu>().AddAsync(menu);
+    }
+
+    // ═══════════════════ 用户-菜单关联 ═══════════════════
+
+    private static async Task SeedUserMenusAsync(IUnitOfWork uow, AppDbContext context)
+    {
+        var allMenus = await uow.Repository<Menu>().GetAllAsync();
+        var allMenuIds = allMenus.Select(m => m.Id).ToList();
+
+        // 平台管理员 admin 不需要关联，代码中直接看全部
+        // 租户管理员和普通用户需要关联菜单
+
+        // 获取所有租户用户
+        var tenantUsers = await uow.Repository<User>()
+            .FindAsync(u => u.UserType == UserType.TenantAdmin || u.UserType == UserType.TenantUser);
+
+        // 获取租户管理员可用的菜单（排除 tenants.*, system-params.*, jobs.*, operation-logs.*）
+        var tenantAdminMenuIds = allMenus
+            .Where(m => !IsBannedPermission(m.PermissionCode))
+            .Select(m => m.Id)
+            .ToList();
+
+        // 获取普通用户可用的菜单（仅基础菜单）
+        var normalUserMenuIds = allMenus
+            .Where(m => m.PermissionCode == null || 
+                        m.PermissionCode.StartsWith("users.") || 
+                        m.PermissionCode.StartsWith("datadict.") ||
+                        m.PermissionCode.StartsWith("files."))
+            .Select(m => m.Id)
+            .ToList();
+
+        foreach (var user in tenantUsers)
+        {
+            // 检查是否已有关联
+            var existingCount = await context.Set<UserMenu>()
+                .CountAsync(um => um.UserId == user.Id);
+            if (existingCount > 0) continue;
+
+            var menuIds = user.UserType == UserType.TenantAdmin ? tenantAdminMenuIds : normalUserMenuIds;
+
+            foreach (var menuId in menuIds)
+            {
+                context.Set<UserMenu>().Add(new UserMenu
+                {
+                    UserId = user.Id,
+                    MenuId = menuId
+                });
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static bool IsBannedPermission(string? permissionCode)
+    {
+        if (string.IsNullOrEmpty(permissionCode)) return false;
+        return permissionCode.StartsWith("tenants.", StringComparison.OrdinalIgnoreCase) ||
+               permissionCode.StartsWith("system-params.", StringComparison.OrdinalIgnoreCase) ||
+               permissionCode.StartsWith("jobs.", StringComparison.OrdinalIgnoreCase) ||
+               permissionCode.StartsWith("operation-logs.", StringComparison.OrdinalIgnoreCase);
     }
 
     // ═══════════════════ 演示数据 ═══════════════════

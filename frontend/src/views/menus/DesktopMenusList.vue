@@ -23,7 +23,8 @@ async function fetchList() {
       ...p,
       children: all.filter(m => m.parentId === p.id),
     }))
-  } catch { ElMessage.error('加载失败') }
+  }
+  catch { ElMessage.error('加载失败') }
   finally { loading.value = false }
 }
 

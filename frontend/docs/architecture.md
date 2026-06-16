@@ -84,10 +84,10 @@ interface AuthState {
   token: string
   userId: string | null
   username: string | null
-  userType: number | null     // 1=PlatformAdmin, 2=TenantAdmin, 3=TenantUser
+  userType: number | null // 1=PlatformAdmin, 2=TenantAdmin, 3=TenantUser
   isSuperAdmin: boolean
-  permissions: string[]       // GET /auth/permissions 返回的权限编码列表
-  tenantIds: string[]         // GET /tenants/accessible 返回的租户列表（平台用户）
+  permissions: string[] // GET /auth/permissions 返回的权限编码列表
+  tenantIds: string[] // GET /tenants/accessible 返回的租户列表（平台用户）
 }
 ```
 

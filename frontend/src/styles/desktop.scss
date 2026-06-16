@@ -67,3 +67,10 @@
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: $spacing-lg;
 }
+
+// 表格内容溢出统一用...省略 + 悬浮提示
+.el-table .cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

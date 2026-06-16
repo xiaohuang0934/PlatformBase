@@ -44,4 +44,7 @@ public class CreateUserDto
     /// <summary>初始部门 ID 列表（必填）</summary>
     [Required(ErrorMessage = "部门不能为空")]
     public List<Guid>? OrganizationUnitIds { get; set; }
+
+    /// <summary>初始菜单 ID 列表（可选）</summary>
+    public List<Guid>? MenuIds { get; set; }
 }

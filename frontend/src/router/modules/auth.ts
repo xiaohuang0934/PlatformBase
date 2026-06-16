@@ -24,6 +24,12 @@ export const constantRoutes: RouteRecordRaw[] = [
     meta: { title: '工作台', icon: 'DataAnalysis', affix: true, keepAlive: true },
   },
   {
+    path: '/m/dashboard',
+    name: 'MobileDashboard',
+    component: () => import('@/views/dashboard/MobileDashboard.vue'),
+    meta: { title: '工作台', hidden: true, keepAlive: true },
+  },
+  {
     path: '/403',
     name: 'Forbidden',
     component: () => import('@/views/403.vue'),

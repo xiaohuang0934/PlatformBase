@@ -27,8 +27,11 @@ public class OrganizationUnitService : IOrganizationUnitService
 
     public async Task<IReadOnlyList<OrgUnitNode>> GetFullTreeAsync(CancellationToken ct = default)
     {
+        // 租户用户只能看到自己租户的部门
+        var filterTenantId = _currentUser.UserType != UserType.PlatformAdmin ? _currentUser.TenantId : null;
+
         var all = await _uow.Repository<OrganizationUnit>()
-            .FindAsync(o => o.IsEnabled, ct);
+            .FindAsync(o => o.IsEnabled && (filterTenantId == null || o.TenantId == filterTenantId), ct);
         return BuildTree(all);
     }
 
@@ -66,9 +69,12 @@ public class OrganizationUnitService : IOrganizationUnitService
 
     public async Task<IReadOnlyList<OrgUnitNode>> GetTreeAsync(Guid? tenantId = null, Guid? parentId = null, CancellationToken ct = default)
     {
+        // 租户用户只能查询自己租户的部门
+        var effectiveTenantId = _currentUser.UserType != UserType.PlatformAdmin ? _currentUser.TenantId : tenantId;
+
         var orgs = await _uow.Repository<OrganizationUnit>()
             .FindAsync(o => o.IsEnabled
-                && (tenantId == null || o.TenantId == tenantId)
+                && (effectiveTenantId == null || o.TenantId == effectiveTenantId)
                 && (parentId == null ? o.ParentId == null : o.ParentId == parentId), ct);
 
         var result = orgs.OrderBy(o => o.SortOrder).Select(o => new OrgUnitNode

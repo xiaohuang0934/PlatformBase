@@ -20,6 +20,9 @@ public class UpdateSystemParamDto
     /// <summary>是否启用</summary>
     public bool? IsEnabled { get; set; }
 
+    /// <summary>是否可被租户继承覆盖</summary>
+    public bool? Inheritable { get; set; }
+
     /// <summary>排序号</summary>
     public int? SortOrder { get; set; }
 }

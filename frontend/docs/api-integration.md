@@ -38,7 +38,7 @@ export function getUserList(params?: {
   isActive?: boolean
   pageIndex?: number
   pageSize?: number
-  tenantIds?: string[]       // v1.8: 平台用户多租户查询
+  tenantIds?: string[] // v1.8: 平台用户多租户查询
 }): Promise<ApiResult<PagedResult<UserDto>>> {
   return http.get('/users', { params }).then(res => res.data)
 }
@@ -72,6 +72,7 @@ export function getUserList(params?: {
 
 ```ts
 import { downloadFile } from '@/utils/download'
+
 downloadFile('/api/v1/files/{id}/download', 'file.pdf')
 ```
 

@@ -14,7 +14,7 @@ export function getParamByCode(code: string): Promise<ApiResult<any>> {
 }
 
 /** 创建参数 */
-export function createParam(data: { code: string, value: string, category?: string, description?: string }): Promise<ApiResult<any>> {
+export function createParam(data: { code: string, value: string, category?: string, description?: string, inheritable?: boolean, name?: string }): Promise<ApiResult<any>> {
   return http.post(BASE, data).then(res => res.data)
 }
 

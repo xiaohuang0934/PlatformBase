@@ -37,7 +37,8 @@ const indentStyle = computed(() => ({
 }))
 
 function onToggle() {
-  if (!props.org.hasChildren) return
+  if (!props.org.hasChildren)
+    return
   actions.toggleOrg(props.tenantId, props.org)
 }
 

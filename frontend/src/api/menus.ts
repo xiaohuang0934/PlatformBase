@@ -47,3 +47,13 @@ export function updateMenu(id: string, data: {
 export function deleteMenu(id: string): Promise<ApiResult<null>> {
   return http.delete(`/menus/${id}`).then(res => res.data)
 }
+
+/** 为用户分配菜单（全量替换） */
+export function assignMenus(userId: string, menuIds: string[]): Promise<ApiResult<any>> {
+  return http.put(`/users/${userId}/menus`, menuIds).then(res => res.data)
+}
+
+/** 获取用户已分配的菜单 ID 列表 */
+export function getUserMenus(userId: string): Promise<ApiResult<string[]>> {
+  return http.get(`/users/${userId}/menus`).then(res => res.data)
+}

@@ -21,8 +21,11 @@ const appItems = computed(() => {
   return items
 })
 
-/** 打开 App */
-function openApp(item: { path: string }) { router.push(item.path) }
+/** 打开 App — 自动转换为移动端路径 */
+function openApp(item: { path: string }) {
+  const mobilePath = item.path.startsWith('/m/') ? item.path : `/m${item.path}`
+  router.push(mobilePath)
+}
 </script>
 
 <template>

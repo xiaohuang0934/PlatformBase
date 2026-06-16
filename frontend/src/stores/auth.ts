@@ -1,9 +1,9 @@
 import type { LoginRequest, UserProfileDto } from '@/types/auth'
-import { UserType } from '@/types/user'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as authApi from '@/api/auth'
 import { getAccessibleTenants } from '@/api/tenants'
+import { UserType } from '@/types/user'
 import {
   clearTokens,
   setAccessToken,

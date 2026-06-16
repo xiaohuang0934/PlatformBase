@@ -162,6 +162,13 @@ public class RoleService : IRoleService
         var entity = await _uow.Repository<Role>().GetByIdAsync(id, ct);
         if (entity == null) return;
 
+        // 租户管理员只能删除本租户的角色
+        if (_currentUser.UserType == UserType.TenantAdmin)
+        {
+            if (entity.TenantId != null && entity.TenantId != _currentUser.TenantId)
+                throw new BusinessException("只能删除本租户的角色", ErrorCode.Forbidden);
+        }
+
         var hasUsers = await _context.Set<UserRole>()
             .AnyAsync(ur => ur.RoleId == id, ct);
         if (hasUsers)
@@ -197,6 +204,13 @@ public class RoleService : IRoleService
         var role = await _uow.Repository<Role>().GetByIdAsync(roleId, ct);
         if (role == null)
             throw new BusinessException("角色不存在", ErrorCode.DataNotFound);
+
+        // 租户管理员只能编辑本租户的角色
+        if (_currentUser.UserType == UserType.TenantAdmin)
+        {
+            if (role.TenantId != null && role.TenantId != _currentUser.TenantId)
+                throw new BusinessException("只能编辑本租户的角色", ErrorCode.Forbidden);
+        }
 
         await _uow.BeginTransactionAsync(ct);
         try

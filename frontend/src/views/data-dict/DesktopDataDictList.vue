@@ -31,7 +31,8 @@ const typeItems = ref<Record<string, DictItem[]>>({})
 const keyword = ref('')
 
 const filteredTypes = computed(() => {
-  if (!keyword.value) return typeList.value
+  if (!keyword.value)
+    return typeList.value
   const kw = keyword.value.toLowerCase()
   return typeList.value.filter(t =>
     t.typeName.toLowerCase().includes(kw) || t.typeCode.toLowerCase().includes(kw),
@@ -93,7 +94,8 @@ function openEditType(row: DictType) {
 
 async function handleTypeSubmit() {
   const valid = await typeFormRef.value?.validate().catch(() => false)
-  if (!valid) return
+  if (!valid)
+    return
   typeSubmitting.value = true
   try {
     if (isTypeEdit.value) {
@@ -147,7 +149,8 @@ function openEditItem(dictTypeId: string, row: DictItem) {
 
 async function handleItemSubmit() {
   const valid = await itemFormRef.value?.validate().catch(() => false)
-  if (!valid) return
+  if (!valid)
+    return
   itemSubmitting.value = true
   try {
     if (isItemEdit.value) {
@@ -299,8 +302,12 @@ onMounted(fetchTypes)
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="typeDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="typeSubmitting" @click="handleTypeSubmit">确定</el-button>
+      <el-button @click="typeDialogVisible = false">
+        取消
+      </el-button>
+      <el-button type="primary" :loading="typeSubmitting" @click="handleTypeSubmit">
+        确定
+      </el-button>
     </template>
   </el-dialog>
 
@@ -321,8 +328,12 @@ onMounted(fetchTypes)
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="itemDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="itemSubmitting" @click="handleItemSubmit">确定</el-button>
+      <el-button @click="itemDialogVisible = false">
+        取消
+      </el-button>
+      <el-button type="primary" :loading="itemSubmitting" @click="handleItemSubmit">
+        确定
+      </el-button>
     </template>
   </el-dialog>
 </template>

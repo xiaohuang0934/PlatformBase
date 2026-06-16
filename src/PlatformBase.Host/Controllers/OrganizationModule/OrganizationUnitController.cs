@@ -41,6 +41,10 @@ public class OrganizationUnitController : ControllerBase
         [FromQuery] string? mode,
         CancellationToken ct)
     {
+        // 租户管理员只能查看本租户部门
+        if (_currentUser.UserType != UserType.PlatformAdmin && tenantId.HasValue && _currentUser.TenantId.HasValue && tenantId.Value != _currentUser.TenantId.Value)
+            return ApiResult<IReadOnlyList<object>>.Fail(ErrorCode.Forbidden, "无权访问该租户的部门");
+
         if (mode == "tree")
         {
             var tree = await _service.GetFullTreeAsync(ct);

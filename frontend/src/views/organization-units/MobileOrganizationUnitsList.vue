@@ -23,7 +23,8 @@ const loading = ref(false)
 const tenantList = ref<TenantNode[]>([])
 const keyword = ref('')
 const filteredTenants = computed(() => {
-  if (!keyword.value) return tenantList.value
+  if (!keyword.value)
+    return tenantList.value
   const kw = keyword.value.toLowerCase()
   return tenantList.value.filter(t => t.tenantName.toLowerCase().includes(kw) || t.tenantCode.toLowerCase().includes(kw))
 })
@@ -39,7 +40,10 @@ async function loadTenants() {
 }
 
 onMounted(loadTenants)
-onActivated(() => { if (tenantList.value.length > 0) loadTenants() })
+onActivated(() => {
+  if (tenantList.value.length > 0)
+    loadTenants()
+})
 
 // ─── 新增部门 action sheet ───
 const showForm = ref(false)
@@ -52,7 +56,8 @@ function openCreate(tenantId: string, parentId?: string) {
 }
 
 async function handleCreate() {
-  if (!form.name || !form.code) return
+  if (!form.name || !form.code)
+    return
   submitting.value = true
   try {
     await orgApi.createOrgUnit({ name: form.name, code: form.code, tenantId: form.tenantId, parentId: form.parentId })
@@ -179,9 +184,11 @@ const renderedList = computed(() => renderNodes(orgList.value, 1))
     </div>
 
     <div v-loading="orgLoading" class="m-card-list" style="margin-top:8px">
-      <div v-for="node in renderedList" :key="node.id" class="m-card-list__item"
+      <div
+        v-for="node in renderedList" :key="node.id" class="m-card-list__item"
         :style="{ paddingLeft: `${12 + node._level * 16}px` }"
-        @click="node.hasChildren ? toggleOrg(node) : undefined">
+        @click="node.hasChildren ? toggleOrg(node) : undefined"
+      >
         <div class="card-header">
           <span class="card-header__title">
             <span v-if="node.hasChildren" style="margin-right:6px;font-size:10px;color:var(--color-text-dim)">
