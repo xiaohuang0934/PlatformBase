@@ -69,6 +69,7 @@ frontend/
 │   │   ├── permissions.ts       # 权限管理
 │   │   ├── menus.ts             # 菜单管理
 │   │   ├── tenants.ts           # 租户管理
+│   │   ├── tenant-params.ts     # 租户参数
 │   │   ├── data-dict.ts         # 数据字典
 │   │   ├── system-params.ts     # 系统参数
 │   │   ├── operation-logs.ts    # 操作日志
@@ -97,7 +98,7 @@ frontend/
 │   │   ├── permission.ts        # 路由守卫（认证 + 动态路由注册）
 │   │   └── modules/             # 路由模块
 │   │       ├── auth.ts          # 静态路由（login/dashboard/403/404 + 移动端路由）
-│   │       └── system.ts        # 动态路由生成（菜单树 → 路由表）
+│   │       └── system.ts        # 动态路由生成（菜单树 → 路由表，自动映射视图组件）
 │   │
 │   ├── layouts/                 # 布局
 │   │   ├── DesktopLayout/       # PC 端布局
@@ -155,6 +156,7 @@ frontend/
 │       ├── tenants/             # 租户管理
 │       ├── data-dict/           # 数据字典
 │       ├── system-params/       # 系统参数
+│       ├── tenant-params/       # 租户参数
 │       ├── operation-logs/      # 操作日志
 │       ├── notifications/       # 消息通知
 │       ├── files/               # 文件管理

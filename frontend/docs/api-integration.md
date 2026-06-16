@@ -76,7 +76,32 @@ import { downloadFile } from '@/utils/download'
 downloadFile('/api/v1/files/{id}/download', 'file.pdf')
 ```
 
-## v1.8 变更摘要
+## v2.0 变更摘要
+
+### 新增 API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `GET /users/{id}/menus` | GET | 获取用户已分配的菜单 ID 列表 |
+| `PUT /users/{id}/menus` | PUT | 为用户分配菜单（全量替换） |
+| `GET /tenant-params` | GET | 分页查询租户参数列表（支持 tenantId 筛选） |
+| `DELETE /tenant-params/{id}` | DELETE | 删除租户参数覆盖值 |
+
+### DTO 字段变更
+
+| DTO | 新增字段 | 类型 | 必填 |
+|-----|---------|------|:--:|
+| `CreateUserDto` | `menuIds` | `Guid[]` | 否 |
+| `SystemParamDto` | `inheritable` | `bool` | — |
+| `CreateSystemParamDto` | `inheritable` | `bool` | 否 |
+| `UpdateSystemParamDto` | `inheritable` | `bool?` | 否 |
+| `PermissionDto` | `groupName` (原 `group`) | `string?` | — |
+
+### 角色变更
+
+- 新增 `TenantAdmin` 角色（租户管理员专用），不含 `tenants.*` / `system-params.*` / `jobs.*` / `operation-logs.*` / `menus.*` 权限
+- `User` 角色不再拥有 `users.list` 权限（通过菜单关联控制）
+- 角色创建/编辑表单增加权限选择器（按 group 分组）
 
 ### 新增 API 端点
 

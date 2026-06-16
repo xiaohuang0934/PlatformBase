@@ -23,11 +23,12 @@
 | `Notifications` | 自建 | `Guid` | 通知记录 |
 | `OrganizationUnits` | 自建 | `Guid` | 组织架构（物化路径） |
 | `Menus` | 自建 | `Guid` | 菜单（树形+权限绑定） |
+| `UserMenus` | 自建 | 复合 (UserId, MenuId) | 用户-菜单关联（控制用户可见菜单） |
 | `PersistedGrants` | IdentityServer4 | `nvarchar(200)` | 持久化授权（refresh_token 等） |
 | `TenantDataDictTypes` | 自建 | `Guid` | 租户字典类型覆盖 |
 | `TenantDataDictItems` | 自建 | `Guid` | 租户字典项覆盖 |
 
-> **注意**：PlatformBase 不依赖 ASP.NET Core Identity，所有表均为自建实体。关联表（UserRoles / RolePermissions / UserPermissions）使用复合主键，不继承 BaseEntity 体系。
+> **注意**：PlatformBase 不依赖 ASP.NET Core Identity，所有表均为自建实体。关联表（UserRoles / RolePermissions / UserPermissions / UserMenus）使用复合主键，不继承 BaseEntity 体系。
 
 ## 表关系图 / Entity Relationship Diagram
 
@@ -47,10 +48,14 @@ Users (SoftDeleteEntity)             Roles (AuditableEntity)       Permissions (
                                        ├ RoleId (PK, FK→Roles)
                                      └ PermissionId (PK, FK→Perms)
 
-                                    UserPermissions
-                                       ├ UserId (PK, FK→Users)
-                                       ├ PermissionId (PK, FK→Perms)
-                                       └ IsGranted (true=授权, false=拒绝)
+                                     UserPermissions
+                                        ├ UserId (PK, FK→Users)
+                                        ├ PermissionId (PK, FK→Perms)
+                                        └ IsGranted (true=授权, false=拒绝)
+
+                                     UserMenus
+                                        ├ UserId (PK, FK→Users)
+                                        └ MenuId (PK, FK→Menus)
 ```
 
 ## Users 表 / Users Table
@@ -118,7 +123,8 @@ Users (SoftDeleteEntity)             Roles (AuditableEntity)       Permissions (
 
 | Name | Description |
 |------|-------------|
-| Admin | 系统管理员 — 拥有全部权限 |
+| Admin | 系统管理员 — 拥有全部权限（仅平台管理员） |
+| TenantAdmin | 租户管理员 — 租户内全部权限（不含租户管理/系统参数/系统监控/菜单管理） |
 | Manager | 业务管理员 — 用户和角色查看 |
 | User | 普通用户 — 最小权限 |
 
@@ -140,16 +146,28 @@ Users (SoftDeleteEntity)             Roles (AuditableEntity)       Permissions (
 
 | 角色 | 权限 |
 |------|------|
-| Admin | 全部 9 个 |
+| Admin | 全部 41 个权限 |
+| TenantAdmin | users/roles/datadict/tenant-params/org-units/files/notifications 共 22 个权限 |
 | Manager | `users.list`, `roles.list`, `perms.list` |
-| User | `users.list` |
+| User | 无（通过菜单关联控制） |
 
 ### 用户
 
-| Username | Password | Email | 角色 |
-|----------|----------|-------|------|
-| admin | Admin@123 | admin@platformbase.com | Admin |
-| testuser | Test@123 | testuser@platformbase.com | User |
+| Username | Password | Email | 类型 | 角色 |
+|----------|----------|-------|------|------|
+| admin | Admin@123 | admin@platformbase.com | 平台管理员 | Admin |
+| platform_ops | Ops@123 | ops@platformbase.com | 平台运维 | Manager |
+| default_admin | Admin@123 | admin@default.com | 租户管理员(默认租户) | TenantAdmin |
+| default_manager | Manager@123 | manager@default.com | 租户用户 | Manager |
+| default_dev | Dev@123 | dev@default.com | 租户用户 | User |
+| default_qa | Qa@123 | qa@default.com | 租户用户 | User |
+| testuser | Test@123 | testuser@default.com | 租户用户 | User |
+| zhijihui_admin | Admin@123 | admin@zhijihui.com | 租户管理员(智汇集) | TenantAdmin |
+| zhijihui_ceo | Ceo@123 | ceo@zhijihui.com | 租户用户 | Manager |
+| zhijihui_cto | Cto@123 | cto@zhijihui.com | 租户用户 | Manager |
+| zhijihui_dev1 | Dev1@123 | dev1@zhijihui.com | 租户用户 | User |
+| zhijihui_dev2 | Dev2@123 | dev2@zhijihui.com | 租户用户 | User |
+| zhijihui_qa | Qa@123 | qa@zhijihui.com | 租户用户 | User |
 
 ## 数据库切换 / Database Provider Switching
 
@@ -209,6 +227,7 @@ Users (SoftDeleteEntity)             Roles (AuditableEntity)       Permissions (
 | `Category` | `nvarchar(50)` | INDEX | 分类（general / security / feature-toggle） |
 | `Description` | `nvarchar(500)` | NULLABLE | 说明 |
 | `IsEnabled` | `bit` | DEFAULT 1 | |
+| `Inheritable` | `bit` | DEFAULT 1 | 是否可被租户继承覆盖（false=仅平台级有效） |
 | `SortOrder` | `int` | DEFAULT 0 | |
 | (继承 SoftDeleteEntity) | | | 审计 + 软删除 |
 

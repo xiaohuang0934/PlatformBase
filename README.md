@@ -86,7 +86,7 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 | Event Bus / 事件总线 | System.Threading.Channels，预留 RabbitMQ 切换 | [架构设计](docs/architecture.md) |
 | Operation Log / 操作日志 | ActionFilter 自动记录，Hangfire 异步入队，分页检索 | [开发指南](docs/dev-guide.md) |
 | File Management / 文件管理 | 统一上传/下载，本地存储 + OSS 可插拔 | [开发指南](docs/dev-guide.md) |
-| Menu Management / 菜单管理 | 树形菜单 + PermissionCode 权限绑定 + 权限裁剪 | [开发指南](docs/dev-guide.md) |
+| Menu Management / 菜单管理 | 树形菜单 + PermissionCode 权限绑定 + 权限裁剪 + 用户菜单关联 | [开发指南](docs/dev-guide.md) |
 | API Versioning / 版本管理 | UrlSegment 版本化 `v{version}` + Swagger 分组 | [开发指南](docs/dev-guide.md) |
 
 ---
@@ -116,6 +116,8 @@ curl -X POST http://localhost:5269/api/auth/login \  # JWT Token
 | `Notifications` | User notifications |
 | `OrganizationUnits` | Org tree (Materialized Path) |
 | `Menus` | Menu tree + permission binding |
+| `UserMenus` | User-menu assignment (which users can see which menus) |
+| `OrganizationUnits` | Org tree (Materialized Path) |
 
 > Full schema: [数据库设计](docs/database.md)
 

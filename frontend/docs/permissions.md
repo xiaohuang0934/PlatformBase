@@ -13,6 +13,7 @@
 | 租户 | `tenants.list` | `tenants.create` | `tenants.edit` | `tenants.delete` |
 | 字典 | `datadict.list` | `datadict.create` | `datadict.edit` | `datadict.delete` |
 | 参数 | `system-params.list` | `system-params.create` | `system-params.edit` | `system-params.delete` |
+| 租户参数 | `tenant-params.list` | `tenant-params.create` | `tenant-params.edit` | `tenant-params.delete` |
 | 日志 | `operation-logs.list` | — | — | — |
 | 文件 | `files.upload` | — | — | — |
 | 组织 | `org-units.list` | `org-units.create` | `org-units.edit` | `org-units.delete` |

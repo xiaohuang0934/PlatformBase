@@ -126,17 +126,76 @@ if (permissions.includes('users.delete-btn')) {
 
 ## 种子权限数据 / Seed Permissions
 
-| Code | Method | Path | Group | Admin | Manager | User |
-|------|--------|------|-------|-------|---------|------|
-| `users.list` | GET | `/api/users` | 用户管理 | ✓ | ✓ | ✓ |
-| `users.create` | POST | `/api/users` | 用户管理 | ✓ | | |
-| `users.edit` | PUT | `/api/users` | 用户管理 | ✓ | | |
-| `users.delete` | DELETE | `/api/users` | 用户管理 | ✓ | | |
-| `roles.list` | GET | `/api/roles` | 角色管理 | ✓ | ✓ | |
-| `roles.create` | POST | `/api/roles` | 角色管理 | ✓ | | |
-| `roles.edit` | PUT | `/api/roles` | 角色管理 | ✓ | | |
-| `roles.delete` | DELETE | `/api/roles` | 角色管理 | ✓ | | |
-| `perms.list` | GET | `/api/permissions` | 权限管理 | ✓ | ✓ | |
+| Code | Method | Group | Admin | TenantAdmin | Manager | User |
+|------|--------|-------|:-----:|:----------:|:-------:|:----:|
+| `users.list` | GET | 用户管理 | ✓ | ✓ | ✓ | |
+| `users.create` | POST | 用户管理 | ✓ | ✓ | | |
+| `users.edit` | PUT | 用户管理 | ✓ | ✓ | | |
+| `users.delete` | DELETE | 用户管理 | ✓ | ✓ | | |
+| `roles.list` | GET | 角色管理 | ✓ | ✓ | ✓ | |
+| `roles.create` | POST | 角色管理 | ✓ | ✓ | | |
+| `roles.edit` | PUT | 角色管理 | ✓ | ✓ | | |
+| `roles.delete` | DELETE | 角色管理 | ✓ | ✓ | | |
+| `perms.list` | GET | 权限管理 | ✓ | | ✓ | |
+| `perms.create` | POST | 权限管理 | ✓ | | | |
+| `perms.edit` | PUT | 权限管理 | ✓ | | | |
+| `perms.delete` | DELETE | 权限管理 | ✓ | | | |
+| `system-params.list` | GET | 系统管理 | ✓ | | | |
+| `system-params.create` | POST | 系统管理 | ✓ | | | |
+| `system-params.edit` | PUT | 系统管理 | ✓ | | | |
+| `system-params.delete` | DELETE | 系统管理 | ✓ | | | |
+| `datadict.list` | GET | 系统管理 | ✓ | ✓ | | |
+| `datadict.create` | POST | 系统管理 | ✓ | ✓ | | |
+| `datadict.edit` | PUT | 系统管理 | ✓ | ✓ | | |
+| `datadict.delete` | DELETE | 系统管理 | ✓ | ✓ | | |
+| `jobs.list` | GET | 系统管理 | ✓ | | | |
+| `jobs.manage` | POST | 系统管理 | ✓ | | | |
+| `operation-logs.list` | GET | 系统管理 | ✓ | | | |
+| `files.upload` | POST | 系统管理 | ✓ | ✓ | | |
+| `tenants.list` | GET | 多租户 | ✓ | | | |
+| `tenants.create` | POST | 多租户 | ✓ | | | |
+| `tenants.edit` | PUT | 多租户 | ✓ | | | |
+| `tenants.delete` | DELETE | 多租户 | ✓ | | | |
+| `tenant-params.list` | GET | 多租户 | ✓ | ✓ | | |
+| `tenant-params.create` | POST | 多租户 | ✓ | ✓ | | |
+| `tenant-params.edit` | PUT | 多租户 | ✓ | ✓ | | |
+| `tenant-params.delete` | DELETE | 多租户 | ✓ | ✓ | | |
+| `org-units.list` | GET | 组织架构 | ✓ | ✓ | | |
+| `org-units.create` | POST | 组织架构 | ✓ | ✓ | | |
+| `org-units.edit` | PUT | 组织架构 | ✓ | ✓ | | |
+| `org-units.delete` | DELETE | 组织架构 | ✓ | ✓ | | |
+| `menus.list` | GET | 菜单管理 | ✓ | | | |
+| `menus.create` | POST | 菜单管理 | ✓ | | | |
+| `menus.edit` | PUT | 菜单管理 | ✓ | | | |
+| `menus.delete` | DELETE | 菜单管理 | ✓ | | | |
+| `notifications.manage` | POST | 系统管理 | ✓ | ✓ | | |
+
+## 菜单可见性 / Menu Visibility
+
+### 用户-菜单关联 (UserMenu)
+```
+用户可看到的菜单 = 权限裁剪 + 用户类型过滤 + UserMenu 关联
+```
+
+**UserMenu 表**：`(UserId, MenuId)` 复合主键，控制用户可见的菜单项。
+
+**菜单裁剪逻辑** (`MenuService.GetUserMenuTreeAsync`):
+| 用户类型 | 规则 |
+|----------|------|
+| PlatformAdmin | 全部菜单，无裁剪 |
+| TenantAdmin | 过滤 `tenants.*` / `system-params.*` / `jobs.*` / `operation-logs.*` 相关菜单 |
+| TenantUser | 权限匹配 + UserMenu 关联，两项都满足才可见 |
+
+### 菜单分配 API
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `GET /users/{id}/menus` | GET | 获取用户已分配的菜单 ID 列表 |
+| `PUT /users/{id}/menus` | PUT | 全量替换用户菜单关联 |
+
+> 创建用户时可通过 `CreateUserDto.MenuIds` 指定初始菜单。
+> 工具栏"分配菜单"按钮可为现有用户分配菜单（树形选择器）。
+
+---
 
 ## 认证失败处理 / Authorization Failure
 

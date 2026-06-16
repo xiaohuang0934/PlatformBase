@@ -21,6 +21,10 @@
 | `PUT .../organizations` | 部门分配 | 全量替换 + 事务保护 |
 | `POST .../organizations/{orgId}` | 添加到部门 | 用户-部门 M:N 关系的独立添加 |
 | `DELETE .../organizations/{orgId}` | 移出部门 | 用户-部门 M:N 关系的独立移除 |
+| `GET /users/{id}/menus` | 查看用户菜单 | 返回已分配菜单 ID 列表 |
+| `PUT /users/{id}/menus` | 分配菜单 | 全量替换用户菜单关联（工具栏功能） |
+
+**创建用户时**：支持通过 `CreateUserDto.MenuIds` 指定初始菜单。
 
 **创建用户权限校验链（DataScopeAuthorizationService）：**
 ```
@@ -55,6 +59,8 @@
 
 **权限变更联动：** 角色权限变更后 → `InvalidateAffectedUsersCacheAsync` 失效所有拥有该角色的用户的 `user:perms:{userId}` 缓存。
 
+**创建/编辑角色表单**：前端新增权限选择器（按 `GroupName` 分组展示），创建/编辑角色时可直接分配权限。权限选择范围受限于当前用户已有的权限。
+
 ---
 
 ## 权限管理 (Permission)
@@ -87,9 +93,9 @@ GetValueAsync(code, tenantId):
   ③ Redis 缓存：sysparam:{tid}:{code} / sysparam:global:{code}
 ```
 
-**SystemParam API：** `GET/POST/PUT/DELETE /api/v1/system-params`（平台管理员操作全局参数）
+**SystemParam API：** `GET/POST/PUT/DELETE /api/v1/system-params`（平台管理员操作全局参数，新增 `Inheritable` 字段控制租户是否可继承覆盖）
 
-**TenantParam API：** `GET/POST/PUT /api/v1/tenant-params`（租户/平台管理员操作租户覆盖参数）
+**TenantParam API：** `GET/POST/PUT/DELETE /api/v1/tenant-params`（租户/平台管理员操作租户覆盖参数，新增分页列表+删除接口；创建时校验系统参数 `Inheritable` 状态，不可继承的参数禁止覆盖）
 
 **功能开关：** `Category="feature-toggle"` + `Value="true"/"false"`，通过 `GetAllFeaturesAsync` 批量查询。
 
@@ -207,7 +213,11 @@ GetValueAsync(code, tenantId):
 
 **安全约束：** 创建子菜单时校验父菜单租户归属，禁止跨租户嵌套。
 
-**平台管理员简化：** `UserType == PlatformAdmin` 时菜单不裁剪，返回全部。
+**可见性规则（v2.0）：**
+- **平台管理员**：菜单不裁剪，返回全部
+- **租户管理员**：自动过滤 `tenants.*` / `system-params.*` / `jobs.*` / `operation-logs.*` 相关菜单
+- **租户普通用户**：需权限匹配 + UserMenu 关联，两项都满足才可见
+- **空父菜单**：父级目录下无可见子菜单时自动隐藏
 
 **API：**
 - `GET /api/v1/menus/tree` — 当前用户可访问的菜单树（自动裁剪无权限节点）
