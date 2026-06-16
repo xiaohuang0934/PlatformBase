@@ -12,6 +12,7 @@ import 'vant/lib/index.css'
 import './styles/tokens.scss'
 import './styles/reset.scss'
 import './styles/glass.scss'
+import './styles/tree.scss'
 import './styles/desktop.scss'
 import './styles/mobile.scss'
 

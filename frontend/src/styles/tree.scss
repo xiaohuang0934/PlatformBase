@@ -1,0 +1,67 @@
+// ═══════════ 树形视图公共样式 ═══════════
+// 用于组织架构 / 菜单管理 / 数据字典 三个树形页面
+// 在 App.vue 中全局导入
+
+.tree-container {
+  background: var(--color-bg-card, #fff);
+  border: 1px solid var(--color-border, #e4e7ed);
+  border-radius: var(--radius-lg, 8px);
+  padding: 8px 0;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  transition: background 0.15s;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-bg-hover, #f5f7fa);
+  }
+}
+
+.tree-row--border {
+  border-bottom: 1px solid var(--color-border, #e4e7ed);
+}
+
+.tree-expand {
+  width: 20px;
+  flex-shrink: 0;
+  color: var(--color-text-dim, #999);
+}
+
+.tree-arrow {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.tree-name {
+  font-weight: 600;
+  color: var(--color-text-primary, #303133);
+  min-width: 80px;
+}
+
+.tree-name--md {
+  font-weight: 500;
+}
+
+.tree-code {
+  font-size: 13px;
+  color: var(--color-text-dim, #999);
+}
+
+.tree-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.tree-empty {
+  text-align: center;
+  padding: 40px 0;
+  color: var(--color-text-dim, #999);
+  font-size: 14px;
+}

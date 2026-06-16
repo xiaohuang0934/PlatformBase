@@ -1,37 +1,17 @@
 <script setup lang="ts">
 import { Delete, RefreshRight, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
 import * as logApi from '@/api/operation-logs'
 import { useAuthStore } from '@/stores/auth'
+import { useCrudList } from '@/composables/useCrudList'
 import { parseTime } from '@/utils/index'
 
 const auth = useAuthStore()
-const loading = ref(false)
-const list = ref<any[]>([])
-const total = ref(0)
-const query = reactive({ keyword: '', pageIndex: 1, pageSize: 10 })
 
-/** 获取 List */
-async function fetchList() {
-  loading.value = true
-  try {
-    const res = await logApi.getLogList({ keyword: query.keyword || undefined, pageIndex: query.pageIndex, pageSize: query.pageSize })
-    list.value = res.data.items ?? []; total.value = res.data.totalCount ?? 0
-  }
-  catch {
-    ElMessage.error('加载失败，请重试')
-  }
-  finally { loading.value = false }
-}
-/** 搜索 */
-function onSearch() { query.pageIndex = 1; fetchList() }
-/** On Re设置 */
-function onReset() { query.keyword = ''; query.pageIndex = 1; fetchList() }
-/** 分页切换 */
-function onPageChange(p: number) { query.pageIndex = p; fetchList() }
+const { loading, list, total, query, fetchList, onSearch, onReset, onPageChange } = useCrudList<any>(
+  () => logApi.getLogList({ keyword: query.keyword || undefined, pageIndex: query.pageIndex, pageSize: query.pageSize }),
+)
 
-/** Cleanup */
 async function handleCleanup() {
   await logApi.cleanupLogs(90)
   ElMessage.success('已清理 90 天前的日志')
@@ -44,21 +24,13 @@ onMounted(fetchList)
 <template>
   <div class="page-container">
     <div class="page-header">
-      <h2 class="page-header__title">
-        操作日志
-      </h2>
-      <el-button :icon="Delete" @click="handleCleanup">
-        清理旧日志
-      </el-button>
+      <h2 class="page-header__title">操作日志</h2>
+      <el-button :icon="Delete" @click="handleCleanup">清理旧日志</el-button>
     </div>
     <div class="search-bar">
       <el-input v-model="query.keyword" placeholder="用户名 / 操作" clearable style="width: 220px" @keyup.enter="onSearch" />
-      <el-button type="primary" :icon="Search" @click="onSearch">
-        搜索
-      </el-button>
-      <el-button :icon="RefreshRight" @click="onReset">
-        重置
-      </el-button>
+      <el-button type="primary" :icon="Search" @click="onSearch">搜索</el-button>
+      <el-button :icon="RefreshRight" @click="onReset">重置</el-button>
     </div>
     <el-table v-loading="loading" :data="list" border stripe row-key="id">
       <el-table-column v-if="auth.isSuperAdmin" prop="id" label="ID" width="280" show-overflow-tooltip />
@@ -67,11 +39,7 @@ onMounted(fetchList)
       <el-table-column prop="resource" label="资源" min-width="160" show-overflow-tooltip />
       <el-table-column prop="detail" label="描述" min-width="200" show-overflow-tooltip />
       <el-table-column prop="ipAddress" label="IP" width="140" />
-      <el-table-column label="时间" width="170">
-        <template #default="{ row }">
-          {{ parseTime(row.timestamp) }}
-        </template>
-      </el-table-column>
+      <el-table-column label="时间" width="170"><template #default="{ row }">{{ parseTime(row.timestamp) }}</template></el-table-column>
     </el-table>
     <div style="display:flex;justify-content:flex-end;margin-top:16px">
       <el-pagination v-model:current-page="query.pageIndex" v-model:page-size="query.pageSize" :total="total" :page-sizes="[10, 20, 50]" layout="total,sizes,prev,pager,next" @current-change="onPageChange" @size-change="onPageChange" />
